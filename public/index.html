@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Guardian Work - Smooth V2</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+:root{--green:#075D3B;--green2:#0B7A4D;--orange:#F7931E;--ink:#10231B;--muted:#64746C;--mist:#F6F9F7}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,sans-serif;color:var(--ink);background:var(--mist)}
+.view{display:none}.view.active{display:block;animation:enter .3s ease}
+@keyframes enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.card{background:#fff;border:1px solid #dce8e1;border-radius:20px;box-shadow:0 10px 28px rgba(16,35,27,.06)}
+.field{width:100%;border:1px solid #cbd9d1;border-radius:11px;padding:.75rem .85rem;outline:none;background:#fff}
+.field:focus{border-color:var(--green2);box-shadow:0 0 0 3px rgba(11,122,77,.13)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;border-radius:11px;padding:.78rem 1.1rem;font-weight:700;transition:.2s;cursor:pointer}
+.btn-primary{background:var(--green);color:#fff}.btn-orange{background:var(--orange);color:#10231B}.btn-soft{background:#e9f4ee;color:var(--green)}.btn-outline{border:1px solid #b8cfc2;color:var(--green);background:#fff}
+.progress-ring{background:conic-gradient(var(--green2) calc(var(--p) * 1%), #e3eee8 0);border-radius:50%;padding:10px}
+.toast{position:fixed;z-index:50;right:1rem;bottom:5.5rem;max-width:360px;padding:.9rem 1rem;border-radius:13px;background:#10231B;color:#fff;transform:translateY(150%);transition:.3s}.toast.show{transform:translateY(0)}
+@media(max-width:767px){main{padding-bottom:6rem!important}.desktop-nav{display:none}.bottom-nav{display:flex}}
+@media(min-width:768px){.bottom-nav{display:none}}
+@media print{header,.bottom-nav,.no-print,#toast{display:none!important}.view{display:none!important}#mycv-view{display:block!important}body{background:#fff}}
+</style>
+</head>
+<body>
+<div class="min-h-screen">
+<header class="sticky top-0 z-20 border-b bg-white/95 backdrop-blur">
+<div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-8">
+<button class="flex items-center gap-3" onclick="showView('home')"><div class="h-9 w-9 grid place-items-center rounded-xl bg-[#075D3B] text-white font-extrabold">G</div><div class="hidden sm:block text-left"><div class="text-xs font-extrabold tracking-[.18em] text-[#075D3B]">GUARDIAN WORK</div><div class="text-xs text-[#64746C]">MY GUARDIAN LINK</div></div></button>
+<nav class="desktop-nav flex items-center gap-1"><button class="rounded-lg px-3 py-2 text-sm font-semibold text-[#075D3B]" onclick="showView('seeker')">Find Work</button><button class="rounded-lg px-3 py-2 text-sm font-semibold text-[#075D3B]" onclick="showView('employer')">Find People</button><button class="rounded-lg px-3 py-2 text-sm font-semibold text-[#075D3B]" onclick="showView('admin')">Concierge</button><button class="btn btn-orange ml-2 text-sm" onclick="showView('verify')">Hiring? Verify</button></nav>
+<button class="relative p-2 text-[#075D3B]" onclick="showView('mycv')"><i data-lucide="bell"></i></button>
+</div>
+</header>
+
+<main>
+<section id="home-view" class="view active">
+<div class="bg-[#075D3B] px-4 py-12 text-white md:px-8 md:py-20">
+<div class="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[1.25fr_.75fr]">
+<div><p class="mb-4 text-sm font-bold tracking-[.2em] text-[#F7931E]">SAFER WORK STARTS HERE</p><h1 class="max-w-3xl text-5xl font-extrabold leading-[1.04]">Find Work.<br>Find People.<br><span class="text-[#F7931E]">Faster.</span></h1><p class="mt-6 max-w-2xl text-lg leading-8 text-emerald-50">9 Provinces &bull; 100+ towns &bull; 40+ job types. Zero fees for job seekers. ESA Act 4 of 2014 compliant.</p><div class="mt-8 flex flex-wrap gap-3"><button class="btn bg-white text-[#075D3B]" onclick="showView('seeker')">I need work</button><button class="btn btn-orange" onclick="showView('employer')">I need people</button></div></div>
+<aside class="rounded-[26px] border border-white/15 bg-white/10 p-6 backdrop-blur"><div class="flex items-center gap-2 text-[#F7931E]"><i data-lucide="radio"></i><span class="text-sm font-bold">LIVE TALENT POOL</span></div><p id="live-pool-count" class="mt-5 text-4xl font-extrabold">&mdash; profiles</p><p class="mt-2 text-sm leading-6 text-emerald-50">Real-time from Supabase. Search Secunda welders instantly.</p><div class="mt-6 rounded-xl bg-white/10 p-4 text-sm"><span class="mr-2 inline-block h-2 w-2 rounded-full bg-[#F7931E] animate-pulse"></span><span id="live-status">Connecting&hellip;</span></div></aside>
+</div>
+</div>
+<div class="mx-auto max-w-7xl px-4 py-10 md:px-8"><div class="grid grid-cols-2 gap-3 md:grid-cols-4"><div class="card p-5"><p class="text-sm text-[#64746C]">Verified Profiles</p><p id="stat-profiles" class="mt-2 text-3xl font-extrabold text-[#075D3B]">0</p></div><div class="card p-5"><p class="text-sm text-[#64746C]">Towns Covered</p><p class="mt-2 text-3xl font-extrabold text-[#075D3B]">100+</p></div><div class="card p-5"><p class="text-sm text-[#64746C]">Job Types</p><p class="mt-2 text-3xl font-extrabold text-[#075D3B]">40+</p></div><div class="card p-5"><p class="text-sm text-[#64746C]">Employers</p><p id="stat-employers" class="mt-2 text-3xl font-extrabold text-[#075D3B]">0</p></div></div></div>
+</section>
+
+<section id="seeker-view" class="view mx-auto max-w-5xl px-4 py-8 md:px-8">
+<p class="text-sm font-extrabold tracking-[.14em] text-[#0B7A4D]">FOR JOB SEEKERS</p><h1 class="mt-2 text-4xl font-extrabold">Build your work profile</h1>
+<div class="mt-7 grid gap-6 lg:grid-cols-[1fr_.9fr]">
+<form id="seeker-form" class="card p-6" onsubmit="saveProfile(event)">
+<h2 class="text-2xl font-bold">Your profile</h2>
+<div class="mt-5 grid gap-4 sm:grid-cols-2"><div><label class="mb-1 block text-sm font-bold">Full name</label><input id="seeker-name" class="field" required placeholder="Sibusiso Tau"></div><div><label class="mb-1 block text-sm font-bold">Phone</label><input id="seeker-phone" class="field" placeholder="082 123 4567" required></div><div><label class="mb-1 block text-sm font-bold">Email (optional)</label><input id="seeker-email" type="email" class="field"></div><div><label class="mb-1 block text-sm font-bold">Province</label><select id="seeker-province" class="field"></select></div><div><label class="mb-1 block text-sm font-bold">Town / Area</label><input id="seeker-location" list="town-list" class="field" placeholder="Secunda" required></div><div><label class="mb-1 block text-sm font-bold">Job title</label><select id="seeker-job" class="field"></select></div></div>
+<div class="mt-4"><label class="mb-1 block text-sm font-bold">Top skills</label><input id="seeker-skills" class="field" placeholder="POS, cash-up, customer service"></div>
+<div class="mt-4 grid gap-4 sm:grid-cols-2"><div><label class="mb-1 block text-sm font-bold">Experience</label><select id="seeker-experience" class="field"><option>0-1 years</option><option>1-3 years</option><option>3-5 years</option><option>5+ years</option></select></div><div><label class="mb-1 block text-sm font-bold">Education</label><input id="seeker-education" class="field" placeholder="Matric"></div></div>
+<div class="mt-4 grid gap-4 sm:grid-cols-3"><div><label class="mb-1 block text-sm font-bold">PSIRA</label><input id="psira" class="field"></div><div><label class="mb-1 block text-sm font-bold">Licence</label><input id="license" class="field"></div><div><label class="mb-1 block text-sm font-bold">SACE</label><input id="sace" class="field"></div></div>
+<label class="mt-5 mb-1 block text-sm font-bold">CV</label><textarea id="cv-text" class="field min-h-32" required></textarea>
+<button class="btn btn-primary mt-6 w-full" type="submit">Save profile + Get scored</button><p id="seeker-status" class="mt-3 text-sm text-[#0B7A4D]"></p>
+</form>
+<aside class="space-y-5">
+<div class="card p-6"><div class="flex items-center justify-between"><div><p class="text-sm font-bold text-[#64746C]">CV READINESS</p><p id="readiness-score" class="mt-1 text-4xl font-extrabold text-[#075D3B]">&mdash;</p></div><div id="ring" class="progress-ring h-24 w-24" style="--p:0"><div class="progress-inner grid place-items-center h-full w-full bg-white rounded-full"><span id="ring-value" class="text-sm font-extrabold text-[#075D3B]">0%</span></div></div></div><button class="btn btn-orange mt-5 w-full" onclick="scoreCv()">Score my CV now</button><ul id="cv-checklist" class="mt-5 space-y-2 text-sm text-[#64746C]"></ul></div>
+<div class="card bg-[#075D3B] p-6 text-white"><p class="text-xs font-bold tracking-[.15em] text-[#F7931E]">MATCH DNA</p><h2 class="mt-2 text-2xl font-extrabold">Your strongest signals</h2><p id="dna-copy" class="mt-3 text-sm leading-6 text-emerald-50">Complete profile to reveal matching signals.</p></div>
+</aside>
+</div>
+</section>
+
+<section id="employer-view" class="view mx-auto max-w-7xl px-4 py-8 md:px-8">
+<div class="flex flex-wrap items-end justify-between gap-3"><div><p class="text-sm font-extrabold tracking-[.14em] text-[#0B7A4D]">FOR EMPLOYERS</p><h1 class="mt-1 text-4xl font-extrabold">Find people near you</h1></div><button class="btn btn-outline" onclick="showView('verify')">Verify employer</button></div>
+<form id="find-form" class="card mt-6 grid gap-3 p-4 md:grid-cols-[1.25fr_1fr_1fr_auto]" onsubmit="searchPeople(event)"><select id="find-job" class="field"></select><select id="find-province" class="field"></select><input id="find-location" list="town-list" class="field" placeholder="Secunda..."><button class="btn btn-primary" type="submit">FIND</button></form>
+<div id="search-results" class="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3"><div class="card p-6 text-[#64746C]">Search for Welder in Secunda &mdash; results live.</div></div>
+</section>
+
+<section id="verify-view" class="view mx-auto max-w-xl px-4 py-8 md:px-8">
+<p class="text-sm font-extrabold tracking-[.14em] text-[#0B7A4D]">EMPLOYER VERIFICATION</p><h1 class="mt-2 text-4xl font-extrabold">Be visible as a safer employer.</h1>
+<form class="card mt-6 p-6 space-y-3" onsubmit="saveEmployer(event)"><input id="v-company" class="field" placeholder="Company name" required><select id="v-type" class="field"><option>CIPC Pty Ltd</option><option>Sole Prop</option><option>Trust</option><option>NGO/NPO</option></select><input id="v-reg" class="field" placeholder="2020/123456/07" required><input id="v-phone" class="field" placeholder="Company phone" required><div class="flex gap-2"><input id="v-otp" class="field flex-1" placeholder="OTP 123456"><button type="button" class="btn btn-soft" onclick="mockOTP()">Verify phone</button></div><textarea id="v-address" class="field" placeholder="Physical address"></textarea><div class="rounded-xl border border-red-200 bg-[#ffe4e6] p-3 text-sm text-[#991b1b]">Charging job seekers is illegal under Employment Services Act 4 of 2014.</div><button class="btn btn-orange w-full" type="submit">Submit for Verification</button><p id="verify-status" class="text-sm"></p></form>
+</section>
+
+<section id="admin-view" class="view mx-auto max-w-7xl px-4 py-8 md:px-8">
+<p class="text-sm font-extrabold tracking-[.14em] text-[#0B7A4D]">CONCIERGE DESK</p><h1 class="mt-1 text-4xl font-extrabold">Admin &mdash; Live</h1>
+<div class="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4"><div class="card p-5"><p class="text-sm">Profiles</p><p id="admin-profiles" class="mt-2 text-3xl font-extrabold">0</p></div><div class="card p-5"><p class="text-sm">Employers</p><p id="admin-employers" class="mt-2 text-3xl font-extrabold">0</p></div><div class="card p-5"><p class="text-sm">Pending</p><p id="admin-requests" class="mt-2 text-3xl font-extrabold">0</p></div><div class="card p-5"><p class="text-sm">Verified</p><p id="admin-invites" class="mt-2 text-3xl font-extrabold">0</p></div></div>
+<div id="admin-list" class="mt-6 card p-4 text-sm">Loading&hellip;</div>
+</section>
+
+<section id="mycv-view" class="view mx-auto max-w-6xl px-4 py-8 md:px-8">
+<div class="flex justify-between"><div><p class="text-sm font-extrabold tracking-[.14em] text-[#0B7A4D]">MY WORK DASHBOARD</p><h1 class="mt-1 text-4xl font-extrabold">Work dashboard</h1></div><div class="flex gap-2 no-print"><button class="btn btn-outline" onclick="showView('seeker')">Edit</button><button class="btn btn-primary" onclick="window.print()">Print PDF</button></div></div>
+<div class="mt-6 grid gap-4 sm:grid-cols-3"><div class="card p-5"><p class="text-sm">CV Readiness</p><p id="dash-readiness" class="mt-2 text-3xl font-extrabold text-[#075D3B]">&mdash;</p></div><div class="card p-5"><p class="text-sm">Completeness</p><p id="dash-completeness" class="mt-2 text-3xl font-extrabold">&mdash;</p></div><div class="card p-5"><p class="text-sm">Searchability</p><p id="dash-searchability" class="mt-2 text-3xl font-extrabold">&mdash;</p></div></div>
+<div class="mt-8 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm">Safety: NEVER pay to apply. Report 0800 222 777. ESA Act 4 of 2014.</div>
+<div class="mt-8 card p-8"><h2 class="text-2xl font-bold">CV Preview</h2><div id="cv-preview" class="mt-4 text-sm"><em>Fill profile&hellip;</em></div></div>
+</section>
+</main>
+
+<nav class="bottom-nav fixed bottom-0 left-0 right-0 z-20 border-t bg-white px-2 py-2"><div class="mx-auto grid w-full max-w-lg grid-cols-5 gap-1"><button class="flex flex-col items-center py-1 text-[#075D3B]" onclick="showView('home')"><i data-lucide="home" class="h-5 w-5"></i><span class="text-[10px] font-bold">Home</span></button><button class="flex flex-col items-center py-1 text-[#64746C]" onclick="showView('seeker')"><i data-lucide="user" class="h-5 w-5"></i><span class="text-[10px]">Profile</span></button><button class="flex flex-col items-center py-1 text-[#64746C]" onclick="showView('employer')"><i data-lucide="search" class="h-5 w-5"></i><span class="text-[10px]">Find</span></button><button class="flex flex-col items-center py-1 text-[#64746C]" onclick="showView('mycv')"><i data-lucide="file-text" class="h-5 w-5"></i><span class="text-[10px]">MyCV</span></button><button class="flex flex-col items-center py-1 text-[#64746C]" onclick="showView('admin')"><i data-lucide="layout-dashboard" class="h-5 w-5"></i><span class="text-[10px]">Desk</span></button></div></nav>
+
+<div id="toast" class="toast"></div>
+</div>
+<datalist id="town-list"></datalist>
+
+<script>
+/* ---------- Supabase ---------- */
+const SUPABASE_URL = "https://yruamxeixllvkkgcejdc.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlydWFteGVpeGxsdmtrZ2NlamRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxODEyNjgsImV4cCI6MjEwMzc1NzI2OH0.IteuH4UMoJ5D-2EjZlMXKwd38KO76zYB_FLd_-hF2yg";
+let db = null;
+try { db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON); } catch (e) { console.log("[v0] supabase init failed", e); }
+
+/* ---------- Helpers ---------- */
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
+function showView(id){
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const el = document.getElementById(id + '-view');
+  if (el) el.classList.add('active');
+  window.scrollTo(0,0);
+  lucide.createIcons();
+  if (id === 'admin') loadAdmin();
+  if (id === 'home') loadStats();
+}
+function toastMsg(m){ const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
+
+/* ---------- Reference data ---------- */
+const provinces = ["Gauteng","Mpumalanga","KwaZulu-Natal","Limpopo","North West","Free State","Eastern Cape","Western Cape","Northern Cape"];
+const jobs = ["General Worker","Cashier","Shop Assistant","Retail Assistant","Welder","Boilermaker","Electrician","Plumber","Bricklayer","Painter","Tiler","Carpenter","Security Guard","PSIRA Guard","Cleaner","Janitor","Waiter","Waitress","Bartender","Chef","Kitchen Staff","Driver Code 8","Driver Code 10","Driver Code 14","Forklift Driver","Delivery Driver","Call Centre Agent","Receptionist","Admin Clerk","Data Capturer","Sales Assistant","Promoter","Till Packer","Domestic Worker","Gardener","Nanny","Caregiver","Cashier Supervisor"];
+const townsDB = {"Gauteng":["Johannesburg","Soweto","Sandton","Midrand","Pretoria","Pretoria West","Centurion","Mamelodi","Soshanguve","Atteridgeville","Tembisa","Kempton Park","Boksburg","Benoni","Germiston","Vereeniging","Vanderbijlpark","Carletonville","Randburg","Roodepoort","Alexandra","Diepsloot"],"Mpumalanga":["Nelspruit","Mbombela","Witbank","Emalahleni","Middelburg","Secunda","Ermelo","Standerton","Bethal","Kriel","Highveld Park","Piet Retief","Barberton","White River","Hazyview"],"KwaZulu-Natal":["Durban","Pinetown","Umhlanga","Chatsworth","Phoenix","Pietermaritzburg","Newcastle","Richards Bay","Empangeni","Dundee","Ladysmith","Port Shepstone","Stanger","Ballito","Hillcrest"],"Limpopo":["Polokwane","Seshego","Mankweng","Tzaneen","Phalaborwa","Thohoyandou","Musina","Lephalale","Bela-Bela","Modimolle"],"North West":["Rustenburg","Mahikeng","Klerksdorp","Potchefstroom","Brits","Lichtenburg","Vryburg"],"Free State":["Bloemfontein","Welkom","Sasolburg","Kroonstad","Bethlehem","Phuthaditjhaba","Botshabelo"],"Eastern Cape":["Gqeberha","Port Elizabeth","East London","Mthatha","Mdantsane","Uitenhage","Queenstown","Grahamstown","King Williams Town"],"Western Cape":["Cape Town","Stellenbosch","Paarl","Bellville","Mitchells Plain","Khayelitsha","Somerset West","George","Mossel Bay","Worcester","Knysna","Oudtshoorn"],"Northern Cape":["Kimberley","Upington","Springbok","Kuruman","De Aar","Kathu"]};
+
+/* ---------- Init ---------- */
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('seeker-job').innerHTML = jobs.map(j => `<option>${j}</option>`).join('');
+  document.getElementById('find-job').innerHTML = '<option value="">Any role - 40+ jobs</option>' + jobs.map(j => `<option>${j}</option>`).join('');
+  document.getElementById('seeker-province').innerHTML = provinces.map(p => `<option>${p}</option>`).join('');
+  document.getElementById('find-province').innerHTML = '<option value="">Any province - 9 provinces</option>' + provinces.map(p => `<option>${p}</option>`).join('');
+  const dl = document.getElementById('town-list');
+  Object.values(townsDB).flat().forEach(t => { const o = document.createElement('option'); o.value = t; dl.appendChild(o); });
+  const chk = ['Phone number','Location','Job keywords','Experience detail','Skills'];
+  document.getElementById('cv-checklist').innerHTML = chk.map(c => `<li>&#9675; ${c}</li>`).join('');
+  lucide.createIcons();
+  loadStats();
+});
+
+/* ---------- CV scoring ---------- */
+function computeScore(){
+  const phone = document.getElementById('seeker-phone').value.trim();
+  const loc = document.getElementById('seeker-location').value.trim();
+  const job = document.getElementById('seeker-job').value;
+  const skills = document.getElementById('seeker-skills').value.trim();
+  const cv = document.getElementById('cv-text').value.trim();
+  let s = 0; const ch = [];
+  if (phone){ s += 20; ch.push('&#10003; Phone'); } else ch.push('&#9675; Phone');
+  if (loc){ s += 20; ch.push('&#10003; Location'); } else ch.push('&#9675; Location');
+  if (job){ s += 15; ch.push('&#10003; Job'); } else ch.push('&#9675; Job');
+  if (cv.length > 40){ s += 25; ch.push('&#10003; Experience'); } else ch.push('&#9675; Experience');
+  if (skills){ s += 20; ch.push('&#10003; Skills'); } else ch.push('&#9675; Skills');
+  return { s, ch, phone, loc, job, skills, cv };
+}
+function scoreCv(){
+  const { s, ch, phone, loc, job, skills } = computeScore();
+  document.getElementById('readiness-score').textContent = s + '%';
+  document.getElementById('dash-readiness').textContent = s + '%';
+  document.getElementById('dash-completeness').textContent = Math.min(100, s + 10) + '%';
+  document.getElementById('dash-searchability').textContent = Math.min(100, s + 5) + '%';
+  document.getElementById('ring').style.setProperty('--p', s);
+  document.getElementById('ring-value').textContent = s + '%';
+  document.getElementById('cv-checklist').innerHTML = ch.map(c => `<li>${c}</li>`).join('');
+  document.getElementById('dna-copy').textContent = s > 70 ? ('Strong match: ' + job + ' in ' + loc) : 'Add detail to improve matching.';
+  renderCvPreview();
+  return s;
+}
+function renderCvPreview(){
+  const name = document.getElementById('seeker-name').value || 'Your Name';
+  const job = document.getElementById('seeker-job').value;
+  const loc = document.getElementById('seeker-location').value;
+  const phone = document.getElementById('seeker-phone').value;
+  const skills = document.getElementById('seeker-skills').value;
+  const exp = document.getElementById('seeker-experience').value;
+  const edu = document.getElementById('seeker-education').value;
+  const cv = document.getElementById('cv-text').value;
+  document.getElementById('cv-preview').innerHTML =
+    '<strong>' + esc(name) + '</strong><br>' + esc(job) + ' &ndash; ' + esc(loc) +
+    '<br>Phone: ' + esc(phone) + '<br>Experience: ' + esc(exp) + ' &nbsp; Education: ' + esc(edu) +
+    '<br>Skills: ' + esc(skills) + '<br><br>' + esc(cv).replace(/\n/g, '<br>');
+}
+
+/* ---------- Save profile ---------- */
+async function saveProfile(e){
+  e.preventDefault();
+  const status = document.getElementById('seeker-status');
+  const score = scoreCv();
+  const row = {
+    name: document.getElementById('seeker-name').value.trim(),
+    phone: document.getElementById('seeker-phone').value.trim(),
+    email: document.getElementById('seeker-email').value.trim() || null,
+    province: document.getElementById('seeker-province').value,
+    location: document.getElementById('seeker-location').value.trim(),
+    job: document.getElementById('seeker-job').value,
+    skills: document.getElementById('seeker-skills').value.trim() || null,
+    experience: document.getElementById('seeker-experience').value,
+    education: document.getElementById('seeker-education').value.trim() || null,
+    psira: document.getElementById('psira').value.trim() || null,
+    license: document.getElementById('license').value.trim() || null,
+    sace: document.getElementById('sace').value.trim() || null,
+    cv_text: document.getElementById('cv-text').value.trim(),
+    readiness: score
+  };
+  if (!db){ status.textContent = 'Database not connected.'; return; }
+  status.textContent = 'Saving\u2026';
+  const { error } = await db.from('profiles').insert(row);
+  if (error){ console.log("[v0] saveProfile error", error); status.textContent = 'Error: ' + error.message; toastMsg('Could not save profile'); return; }
+  status.textContent = 'Saved. Your profile is now searchable.';
+  toastMsg('Profile saved to the live talent pool');
+  loadStats();
+  showView('mycv');
+}
+
+/* ---------- Search people ---------- */
+async function searchPeople(e){
+  e.preventDefault();
+  const job = document.getElementById('find-job').value;
+  const province = document.getElementById('find-province').value;
+  const loc = document.getElementById('find-location').value.trim();
+  const box = document.getElementById('search-results');
+  if (!db){ box.innerHTML = '<div class="card p-6 text-[#64746C]">Database not connected.</div>'; return; }
+  box.innerHTML = '<div class="card p-6 text-[#64746C]">Searching\u2026</div>';
+  let q = db.from('profiles').select('id,name,phone,job,province,location,skills,experience,readiness').order('readiness', { ascending: false }).limit(60);
+  if (job) q = q.eq('job', job);
+  if (province) q = q.eq('province', province);
+  if (loc) q = q.ilike('location', '%' + loc + '%');
+  const { data, error } = await q;
+  if (error){ console.log("[v0] search error", error); box.innerHTML = '<div class="card p-6 text-[#64746C]">Error: ' + esc(error.message) + '</div>'; return; }
+  if (!data || !data.length){ box.innerHTML = '<div class="card p-6 text-[#64746C]">No matching people yet. Try a wider search.</div>'; return; }
+  box.innerHTML = data.map(p => `
+    <div class="card p-5">
+      <div class="flex items-center justify-between">
+        <div class="font-extrabold text-[#075D3B]">${esc(p.name)}</div>
+        <span class="rounded-full bg-[#e9f4ee] px-2 py-1 text-xs font-bold text-[#075D3B]">${esc(p.readiness)}% ready</span>
+      </div>
+      <div class="mt-1 text-sm font-semibold">${esc(p.job || 'Worker')}</div>
+      <div class="text-sm text-[#64746C]">${esc(p.location || '')}${p.province ? ', ' + esc(p.province) : ''}</div>
+      <div class="mt-2 text-sm text-[#64746C]">${esc(p.experience || '')}${p.skills ? ' &bull; ' + esc(p.skills) : ''}</div>
+      <a href="tel:${esc(p.phone)}" class="btn btn-soft mt-4 w-full">Call ${esc(p.phone)}</a>
+    </div>`).join('');
+}
+
+/* ---------- Employer verify ---------- */
+function mockOTP(){
+  const v = document.getElementById('v-otp').value.trim();
+  if (v === '123456'){ toastMsg('Phone verified'); document.getElementById('v-otp').style.borderColor = '#0B7A4D'; }
+  else toastMsg('Demo OTP is 123456');
+}
+async function saveEmployer(e){
+  e.preventDefault();
+  const status = document.getElementById('verify-status');
+  const row = {
+    company: document.getElementById('v-company').value.trim(),
+    type: document.getElementById('v-type').value,
+    reg: document.getElementById('v-reg').value.trim(),
+    phone: document.getElementById('v-phone').value.trim(),
+    address: document.getElementById('v-address').value.trim() || null,
+    verified: document.getElementById('v-otp').value.trim() === '123456'
+  };
+  if (!db){ status.textContent = 'Database not connected.'; return; }
+  status.textContent = 'Submitting\u2026';
+  const { error } = await db.from('employers').insert(row);
+  if (error){ console.log("[v0] saveEmployer error", error); status.textContent = 'Error: ' + error.message; return; }
+  status.className = 'text-sm text-[#0B7A4D]';
+  status.textContent = 'Submitted for verification. You can now search the talent pool.';
+  toastMsg('Employer submitted');
+  loadStats();
+  e.target.reset();
+}
+
+/* ---------- Stats ---------- */
+async function loadStats(){
+  if (!db){ document.getElementById('live-status').textContent = 'Offline (no DB)'; return; }
+  const [{ count: pc }, { count: ec }] = await Promise.all([
+    db.from('profiles').select('*', { count: 'exact', head: true }),
+    db.from('employers').select('*', { count: 'exact', head: true })
+  ]);
+  const profiles = pc || 0, employers = ec || 0;
+  document.getElementById('stat-profiles').textContent = profiles;
+  document.getElementById('stat-employers').textContent = employers;
+  document.getElementById('live-pool-count').textContent = profiles + ' profiles';
+  document.getElementById('live-status').textContent = 'Live';
+}
+
+/* ---------- Admin ---------- */
+async function loadAdmin(){
+  const list = document.getElementById('admin-list');
+  if (!db){ list.textContent = 'Database not connected.'; return; }
+  list.textContent = 'Loading\u2026';
+  const [profRes, empRes] = await Promise.all([
+    db.from('profiles').select('id,name,job,location,province,readiness,created_at').order('created_at', { ascending: false }).limit(25),
+    db.from('employers').select('id,company,type,phone,verified,created_at').order('created_at', { ascending: false }).limit(25)
+  ]);
+  const profiles = profRes.data || [], employers = empRes.data || [];
+  const verified = employers.filter(x => x.verified).length;
+  document.getElementById('admin-profiles').textContent = profiles.length;
+  document.getElementById('admin-employers').textContent = employers.length;
+  document.getElementById('admin-requests').textContent = employers.length - verified;
+  document.getElementById('admin-invites').textContent = verified;
+  list.innerHTML = `
+    <div class="grid gap-6 md:grid-cols-2">
+      <div>
+        <h3 class="mb-3 font-extrabold text-[#075D3B]">Recent seekers</h3>
+        ${profiles.length ? profiles.map(p => `<div class="border-b py-2"><span class="font-semibold">${esc(p.name)}</span> &mdash; ${esc(p.job || '')} <span class="text-[#64746C]">(${esc(p.location || '')}, ${esc(p.province || '')})</span> <span class="float-right font-bold text-[#0B7A4D]">${esc(p.readiness)}%</span></div>`).join('') : '<p class="text-[#64746C]">No seekers yet.</p>'}
+      </div>
+      <div>
+        <h3 class="mb-3 font-extrabold text-[#075D3B]">Recent employers</h3>
+        ${employers.length ? employers.map(x => `<div class="border-b py-2"><span class="font-semibold">${esc(x.company)}</span> <span class="text-[#64746C]">${esc(x.type || '')}</span> <span class="float-right rounded-full px-2 py-0.5 text-xs font-bold ${x.verified ? 'bg-[#e9f4ee] text-[#075D3B]' : 'bg-amber-100 text-amber-700'}">${x.verified ? 'Verified' : 'Pending'}</span></div>`).join('') : '<p class="text-[#64746C]">No employers yet.</p>'}
+      </div>
+    </div>`;
+}
+</script>
+</body>
+</html>
