@@ -1,4 +1,4 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script src="https://cdn.tailwindcss.com"></script><title>Community - My Guardian Link</title></head>
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script src="https://cdn.tailwindcss.com"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><title>Community - My Guardian Link</title></head>
 <body class="bg-[#F7F5F0] p-4 max-w-2xl mx-auto">
 <header class="flex justify-between items-center"><a href="index.html" class="font-bold text-[#075D3B]">← Back to Jobs</a><span class="text-xs bg-[#E7F3EC] px-2 py-1 rounded-full">Community Timeline</span></header>
 <h1 class="mt-4 font-bold text-lg">Help Each Other - Which Province & Town?</h1>
@@ -11,16 +11,50 @@
 <datalist id="provs"><option value="Gauteng"><option value="Mpumalanga"><option value="KZN"><option value="Limpopo"><option value="Free State"></datalist>
 <datalist id="towns"><option value="Secunda"><option value="Witbank"><option value="Pretoria West"><option value="Johannesburg"><option value="Durban"></datalist>
 <script>
-let posts=JSON.parse(localStorage.getItem('gwl_community')||'[]');
-if(posts.length===0){posts=[
-{text:'Any welders got hired in Witbank? Which companies hiring?',prov:'Mpumalanga',town:'Witbank',replies:['Try Steelworks on Nelson Mandela drive - they hired 3 last week'],stars:5},
-{text:'Best town for Driver Code 14 in Gauteng? ⭐⭐⭐⭐⭐ Review: Guardian is legit free!',prov:'Gauteng',town:'Pretoria West',replies:['Pretoria West warehouses always need drivers - check industrial area'],stars:5},
-{text:'Review: Got cashier job via My Guardian Link in 2 days! Thanks!',prov:'Gauteng',town:'Pretoria',replies:['Congrats! Which shop?'],stars:5}
-];}
-function render(){document.getElementById('feed').innerHTML=posts.map((p,i)=>`<div class="bg-white rounded-xl p-3 shadow"><div class="text-sm font-bold">${p.text}</div><div class="text-[10px] text-gray-500">${p.prov} • ${p.town} • ${'⭐'.repeat(p.stars||5)}</div><div class="mt-2 text-xs space-y-1">${p.replies.map(r=>'<div class="bg-[#F7F5F0] rounded px-2 py-1">💬 '+r+'</div>').join('')}</div><div class="mt-2 flex gap-2"><input id="rep${i}" placeholder="Reply with help or review..." class="border rounded px-2 py-1 text-xs flex-1"><button onclick="reply(${i})" class="bg-black text-white rounded px-2 py-1 text-xs">Reply</button></div></div>`).join('');}
-function addPost(){const t=document.getElementById('postText').value; if(!t) return; posts.unshift({text:t,prov:document.getElementById('postProv').value||'SA',town:document.getElementById('postTown').value||'All',replies:[],stars:5}); localStorage.setItem('gwl_community',JSON.stringify(posts)); render(); document.getElementById('postText').value='';}
-function reply(i){const v=document.getElementById('rep'+i).value; if(!v) return; posts[i].replies.push(v); localStorage.setItem('gwl_community',JSON.stringify(posts)); render();}
-render();
+const SUPABASE_URL = 'https://your-project.supabase.co';
+const SUPABASE_KEY = 'your-anon-key';
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let posts = [];
+
+async function loadPosts() {
+  try {
+    const { data, error } = await supabase.from('community_posts').select(`*,community_replies(reply_text)`).order('created_at', { ascending: false });
+    if (error) throw error;
+    posts = (data || []).map(post => ({id:post.id,text:post.text,prov:post.province,town:post.town,replies:post.community_replies?.map(r=>r.reply_text)||[],stars:post.stars}));
+    render();
+  } catch (err) {console.error('Error:',err);}
+}
+
+function render() {
+  document.getElementById('feed').innerHTML = posts.map((p,i)=>`<div class="bg-white rounded-xl p-3 shadow"><div class="text-sm font-bold">${p.text}</div><div class="text-[10px] text-gray-500">${p.prov} • ${p.town} • ${'⭐'.repeat(p.stars||5)}</div><div class="mt-2 text-xs space-y-1">${p.replies.map(r=>'<div class="bg-[#F7F5F0] rounded px-2 py-1">💬 '+r+'</div>').join('')}</div><div class="mt-2 flex gap-2"><input id="rep${i}" placeholder="Reply..." class="border rounded px-2 py-1 text-xs flex-1"><button onclick="reply('${p.id}',${i})" class="bg-black text-white rounded px-2 py-1 text-xs">Reply</button></div></div>`).join('');
+}
+
+async function addPost() {
+  const t = document.getElementById('postText').value;
+  if (!t) return;
+  try {
+    const { data, error } = await supabase.from('community_posts').insert([{text:t,province:document.getElementById('postProv').value||'SA',town:document.getElementById('postTown').value||'All',stars:5}]).select();
+    if (error) throw error;
+    posts.unshift({id:data[0].id,text:data[0].text,prov:data[0].province,town:data[0].town,replies:[],stars:5});
+    render();
+    document.getElementById('postText').value = '';
+  } catch (err) {alert('Error creating post.');}
+}
+
+async function reply(postId,postIndex) {
+  const v = document.getElementById('rep'+postIndex).value;
+  if (!v) return;
+  try {
+    await supabase.from('community_replies').insert([{post_id:postId,reply_text:v}]);
+    posts[postIndex].replies.push(v);
+    render();
+  } catch (err) {alert('Error replying.');}
+}
+
+loadPosts();
+supabase.channel('community-channel').on('postgres_changes',{event:'*',schema:'public',table:'community_posts'},()=>loadPosts()).on('postgres_changes',{event:'*',schema:'public',table:'community_replies'},()=>loadPosts()).subscribe();
 </script>
 <div class="text-center text-[10px] text-gray-400 mt-6">POPIA Compliant • Admin can moderate from admin.html • No abusive language</div>
 </body></html>
