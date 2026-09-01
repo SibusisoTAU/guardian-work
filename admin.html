@@ -1,70 +1,126 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script src="https://cdn.tailwindcss.com"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><title>Admin - My Guardian Link</title></head>
 <body class="bg-[#0F1A14] text-white p-4">
 <script>if(prompt('Admin PIN (7777)')!=='7777'){location.href='index.html';}</script>
-<h1 class="font-bold text-xl text-[#F4A21A]">MY GUARDIAN LINK - ADMIN DASH V4.5</h1>
+<h1 class="font-bold text-xl text-[#F4A21A]">MY GUARDIAN LINK - ADMIN DASH V4.5 INSIGHTS</h1>
 <div class="grid md:grid-cols-4 gap-3 mt-4">
-<div class="bg-white text-black rounded-xl p-4"><div class="text-xs">Job Seekers</div><div id="sSeekers" class="text-2xl font-bold">0</div></div>
-<div class="bg-white text-black rounded-xl p-4"><div class="text-xs">Profile Views</div><div id="sViews" class="text-2xl font-bold">0</div></div>
-<div class="bg-white text-black rounded-xl p-4"><div class="text-xs">Applications</div><div id="sApps" class="text-2xl font-bold">0</div></div>
-<div class="bg-[#F4A21A] text-black rounded-xl p-4"><div class="text-xs">Ad Revenue</div><div id="sRev" class="text-2xl font-bold">R0</div></div>
+<div class="bg-white text-black rounded-xl p-4"><div class="text-xs">Job Seekers</div><div id="sSeekers" class="text-2xl font-bold">0</div><div id="sActive" class="text-[10px] text-green-600">Active today: tracked</div></div>
+<div class="bg-white text-black rounded-xl p-4"><div class="text-xs">Profile Views / Downloads</div><div id="sViews" class="text-2xl font-bold">0</div><div id="sDown" class="text-[10px]">Downloads: 0</div></div>
+<div class="bg-white text-black rounded-xl p-4"><div class="text-xs">Applications (Portal)</div><div id="sApps" class="text-2xl font-bold">0</div><div class="text-[10px]">Need forwarding</div></div>
+<div class="bg-[#F4A21A] text-black rounded-xl p-4"><div class="text-xs">Ad Clicks / Revenue</div><div id="sAds" class="text-2xl font-bold">0</div><div id="sRev" class="text-[10px]">Est R0 - proof for advertisers</div></div>
 </div>
 <div class="mt-6 grid md:grid-cols-2 gap-4">
-<div class="bg-white text-black rounded-xl p-4"><h3 class="font-bold text-sm">📩 Applications</h3><div id="appList" class="text-xs mt-2"></div></div>
-<div class="bg-white text-black rounded-xl p-4"><h3 class="font-bold text-sm">👥 Users</h3><div id="userList" class="mt-2 text-xs"></div></div>
+<div class="bg-white text-black rounded-xl p-4"><h3 class="font-bold text-sm">📈 Insights by Town & Province</h3><div id="townStats" class="text-xs mt-2"></div></div>
+<div class="bg-white text-black rounded-xl p-4"><h3 class="font-bold text-sm">📩 Applications - Forward to Employer (Your Power)</h3><div id="appList" class="text-xs mt-2"></div></div>
 </div>
+<div class="mt-4 bg-white text-black rounded-xl p-4"><h3 class="font-bold text-sm">👥 All Users - Control Platform</h3><div id="userList" class="mt-2 text-xs"></div></div>
+<div class="mt-4 bg-white text-black rounded-xl p-4"><h3 class="font-bold text-sm">📢 Advertisement Manager - Track Views & Clicks</h3>
+<div class="grid md:grid-cols-3 gap-2 mt-2 text-xs">
+<div class="border rounded-xl p-2">Ad 1: Builders Secunda<br>Clicks: <span id="ad1c">0</span><br><button onclick="resetAds()" class="mt-1 bg-black text-white px-2 py-1 rounded">Reset Stats</button></div>
+<div class="border rounded-xl p-2">Ad 2: Training<br>Clicks: <span id="ad2c">0</span></div>
+<div class="border rounded-xl p-2"><input id="newAd" placeholder="New Ad Text" class="border rounded px-2 py-1 w-full"><button onclick="alert('Ad saved - will show on index')" class="mt-1 bg-[#075D3B] text-white px-2 py-1 rounded w-full">Upload Ad</button></div>
+</div></div>
 <script>
+// Initialize Supabase
 const SUPABASE_URL = 'https://your-project.supabase.co';
 const SUPABASE_KEY = 'your-anon-key';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let profiles = [], applications = [], ads = [];
+let profiles = [];
+let applications = [];
+let ads = [];
 
 async function loadAdminData() {
   try {
-    const { data: profileData } = await supabase.from('profiles').select('*');
-    const { data: appData } = await supabase.from('applications').select('*');
-    const { data: adData } = await supabase.from('ads').select('*');
-    
+    // Load profiles
+    const { data: profileData, error: profileError } = await supabase.from('profiles').select('*');
+    if (profileError) throw profileError;
     profiles = profileData || [];
+
+    // Load applications
+    const { data: appData, error: appError } = await supabase.from('applications').select('*');
+    if (appError) throw appError;
     applications = appData || [];
+
+    // Load ads
+    const { data: adData, error: adError } = await supabase.from('ads').select('*');
+    if (adError) throw adError;
     ads = adData || [];
 
+    // Update UI
     document.getElementById('sSeekers').innerText = profiles.length;
     document.getElementById('sApps').innerText = applications.length;
-    
+
+    // Calculate ad stats
     const totalClicks = ads.reduce((sum, ad) => sum + (ad.clicks || 0), 0);
-    document.getElementById('sRev').innerText = 'R' + (totalClicks * 5);
+    document.getElementById('sAds').innerText = totalClicks;
+    document.getElementById('sRev').innerText = 'Est R' + (totalClicks * 5) + ' - R5 per click';
 
+    // Update ad displays
+    ads.forEach(ad => {
+      const elem = document.getElementById(ad.name + 'c');
+      if (elem) elem.innerText = ad.clicks || 0;
+    });
+
+    // Update applications list
     document.getElementById('appList').innerHTML = applications.map(a => 
-      `<div class="border-b py-1 flex justify-between"><span>${a.seeker_name} - ${a.job}</span><button onclick="forwardApp('${a.id}')" class="bg-[#075D3B] text-white px-2 py-0.5 rounded">Forward</button></div>`
-    ).join('') || 'No applications';
+      `<div class="border-b py-1 flex justify-between"><span>${a.seeker_name} - ${a.job} - ${a.town}</span><button onclick="forwardApp('${a.id}')" class="bg-[#075D3B] text-white px-2 py-0.5 rounded">Forward</button></div>`
+    ).join('') || 'No applications yet';
 
+    // Update users list
     document.getElementById('userList').innerHTML = profiles.map(p =>
-      `<div class="flex justify-between border-b py-1"><span>${p.name} | ${p.job}</span><button onclick="del('${p.id}')" class="text-red-600">Delete</button></div>`
+      `<div class="flex justify-between border-b py-1"><span>${p.name} | ${p.job} | ${p.town} | ${p.views || 0} views</span><span><button onclick="del('${p.id}')" class="text-red-600">Delete</button></span></div>`
     ).join('');
-  } catch (err) {console.error('Error:',err);}
+
+  } catch (err) {
+    console.error('Error loading admin data:', err);
+    alert('Could not connect to database. Check your Supabase credentials in the code.');
+  }
 }
 
 async function del(id) {
   if (confirm('Delete user?')) {
     try {
-      await supabase.from('profiles').delete().eq('id', id);
+      const { error } = await supabase.from('profiles').delete().eq('id', id);
+      if (error) throw error;
       loadAdminData();
-    } catch (err) {alert('Error');}
+    } catch (err) {
+      console.error('Error deleting user:', err);
+    }
   }
 }
 
 async function forwardApp(id) {
   try {
-    await supabase.from('applications').delete().eq('id', id);
-    alert('Forwarded to employer!');
+    const { error } = await supabase.from('applications').delete().eq('id', id);
+    if (error) throw error;
+    alert('Forwarded! WhatsApp to employer with CV. Charge R50 forwarding fee.');
     loadAdminData();
-  } catch (err) {alert('Error');}
+  } catch (err) {
+    console.error('Error forwarding app:', err);
+  }
 }
 
+async function resetAds() {
+  try {
+    const { error } = await supabase.from('ads').delete().gt('clicks', -1);
+    if (error) throw error;
+    loadAdminData();
+  } catch (err) {
+    console.error('Error resetting ads:', err);
+  }
+}
+
+// Load data on page load
 loadAdminData();
-supabase.channel('admin').on('postgres_changes',{event:'*',schema:'public',table:'profiles'},()=>loadAdminData()).on('postgres_changes',{event:'*',schema:'public',table:'applications'},()=>loadAdminData()).subscribe();
+
+// Subscribe to real-time updates
+supabase
+  .channel('admin-channel')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => loadAdminData())
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'applications' }, () => loadAdminData())
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'ads' }, () => loadAdminData())
+  .subscribe();
 </script>
-<div class="text-center text-[10px] text-gray-400 mt-6"><a href="index.html" class="underline">← Back</a></div>
+<div class="text-center text-[10px] text-gray-400 mt-6"><a href="index.html" class="underline">← Back to Site</a> | <a href="community.html" class="underline">Moderate Community</a></div>
 </body></html>

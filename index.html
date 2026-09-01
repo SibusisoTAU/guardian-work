@@ -40,7 +40,7 @@
 <datalist id="provinces"><option value="Gauteng"><option value="Mpumalanga"><option value="Limpopo"><option value="North West"><option value="Free State"><option value="KwaZulu-Natal"><option value="Eastern Cape"><option value="Western Cape"><option value="Northern Cape"></datalist>
 <datalist id="towns"><option value="Secunda"><option value="Witbank"><option value="Pretoria"><option value="Pretoria West"><option value="Johannesburg"><option value="Durban"><option value="Cape Town"></datalist>
 <script>
-// Initialize Supabase - UPDATE THESE VALUES
+// Initialize Supabase
 const SUPABASE_URL = 'https://your-project.supabase.co';
 const SUPABASE_KEY = 'your-anon-key';
 
@@ -49,6 +49,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let profiles = [];
 let currentId = null;
 
+// Load profiles from Supabase
 async function loadProfiles() {
   try {
     const { data, error } = await supabase.from('profiles').select('*');
@@ -57,7 +58,7 @@ async function loadProfiles() {
     renderCards();
   } catch (err) {
     console.error('Error loading profiles:', err);
-    alert('Could not connect to database. Update SUPABASE_URL and SUPABASE_KEY in index.html');
+    alert('Could not connect to database. Check your Supabase credentials in the code.');
   }
 }
 
@@ -114,6 +115,7 @@ async function viewCV(id) {
   currentId = id;
   const p = profiles.find(x => x.id === id);
   
+  // Update views in Supabase
   try {
     await supabase.from('profiles').update({ views: (p.views || 0) + 1 }).eq('id', id);
     p.views = (p.views || 0) + 1;
@@ -178,6 +180,7 @@ async function trackAd(id) {
       await supabase.from('ads').insert([{ name: id, clicks: 1 }]);
     }
     
+    // Update display
     const { data: updated } = await supabase.from('ads').select('clicks').eq('name', id);
     if (updated && updated.length > 0) {
       document.getElementById(id + 'clicks').innerText = updated[0].clicks + ' clicks';
@@ -188,11 +191,16 @@ async function trackAd(id) {
   alert('Ad clicked!');
 }
 
+// Load initial data
 loadProfiles();
 
-supabase
+// Subscribe to real-time updates
+const subscription = supabase
   .channel('profiles-channel')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => loadProfiles())
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, payload => {
+    console.log('Profile update:', payload);
+    loadProfiles();
+  })
   .subscribe();
 </script>
 <div class="text-center text-[10px] text-gray-500 p-6">POPIA & ESA Act Compliant • No fees • info@myguardianlink.co.za • V4.5 Supabase</div>
