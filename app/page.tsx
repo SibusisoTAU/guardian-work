@@ -128,9 +128,8 @@ export default function Page() {
 
     try {
       const peopleResult = await supabase
-        .from("Job seekers")
-        .select("*")
-        .order("created_at", { ascending: false });
+  .from("Job seekers")
+  .select("*");
 
       if (peopleResult.error) {
         throw new Error(peopleResult.error.message);
