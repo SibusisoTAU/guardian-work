@@ -1,6 +1,3 @@
-
-"use client"
-import { useState, useEffect } from 'react'
 "use client"
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
@@ -10,99 +7,106 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-export default function Timeline() {
-  const [posts, setPosts] = useState<any[]>([])
-  const [content, setContent] = useState("")
-  const [postType, setPostType] = useState("opportunity")
-  const [location, setLocation] = useState("Secunda")
-  const [loading, setLoading] = useState(false)
+export default function TimelinePost({ post }: { post: any }) {
+  const [comments, setComments] = useState<any[]>([])
+  const [newComment, setNewComment] = useState("")
+  const [liked, setLiked] = useState(false)
+  const [likes, setLikes] = useState(post.likes || 0)
 
-  // Load posts
   useEffect(() => {
-    fetchPosts()
-  }, [])
+    fetchComments()
+  }, [post.id])
 
-  async function fetchPosts() {
+  async function fetchComments() {
     const { data } = await supabase
-     .from('posts')
+     .from('comments')
      .select('*')
-     .order('created_at', { ascending: false })
-    if (data) setPosts(data)
+     .eq('post_id', post.id)
+     .order('created_at', { ascending: true })
+
+    if (data) {
+      // DEDUPE FIX - removes duplicates like "Can they take me without experience?"
+      const unique = data.filter((v,i,a) =>
+        a.findIndex(t => t.content === v.content && t.author_name === v.author_name) === i
+      )
+      setComments(unique)
+    }
   }
 
-  async function publishPost() {
-    if (!content.trim()) return alert("Write something bro!")
-    setLoading(true)
+  async function handleLike() {
+    if (liked) return
+    setLiked(true)
+    setLikes(likes + 1)
+    await supabase.from('posts').update({ likes: likes + 1 }).eq('id', post.id)
+  }
 
-    const newPost = {
-      content,
-      post_type: postType,
-      location,
-      author_name: "Guardian Founder",
-      author_role: "MY GUARDIAN LINK",
-      likes: 0,
+  async function handleComment() {
+    if (!newComment.trim()) return
+
+    const comment = {
+      post_id: post.id,
+      content: newComment,
+      author_name: "Work Community Member",
       created_at: new Date().toISOString()
     }
 
-    const { data, error } = await supabase
-     .from('posts')
-     .insert([newPost])
-     .select()
-
-    if (error) {
-      alert("RLS Error again! Run master fix: " + error.message)
-    } else {
-      setPosts([data[0],...posts])
-      setContent("")
-      alert("🔥 POSTED! Welders in Secunda is LIVE!")
+    const { data } = await supabase.from('comments').insert([comment]).select()
+    if (data) {
+      setComments([...comments, data[0]])
+      setNewComment("")
     }
-    setLoading(false)
   }
 
   return (
-    <div className="guardian-timeline p-4 max-w-2xl mx-auto">
-      {/* CREATE POST */}
-      <div className="bg-white rounded-2xl shadow-lg p-4 border-2 border-[#0a4d2a]">
-        <h2 className="text-[#0a4d2a] font-black text-lg mb-3">Share Opportunity / Wisdom</h2>
-
-        <div className="flex gap-2 mb-3">
-          <select value={postType} onChange={e=>setPostType(e.target.value)} className="bg-[#0a4d2a] text-yellow-400 px-3 py-2 rounded-lg font-bold">
-            <option value="opportunity">🔥 Opportunity</option>
-            <option value="wisdom">💡 Wisdom</option>
-            <option value="hiring">📢 Hiring</option>
-          </select>
-          <input value={location} onChange={e=>setLocation(e.target.value)} placeholder="Location e.g. Secunda" className="flex-1 border-2 border-yellow-400 rounded-lg px-3 py-2 font-bold" />
-        </div>
-
-        <textarea
-          value={content}
-          onChange={e=>setContent(e.target.value)}
-          placeholder="Hey there opportunities for welders in Secunda..."
-          className="w-full h-24 border-2 border-gray-200 rounded-xl p-3 focus:border-[#0a4d2a] outline-none"
-        />
-
-        <button
-          onClick={publishPost}
-          disabled={loading}
-          className="mt-3 w-full bg-[#0a4d2a] text-yellow-400 font-black py-3 rounded-xl hover:bg-black transition"
-        >
-          {loading? "Publishing..." : "Publish to Timeline 🚀"}
-        </button>
+    <div className="bg-white rounded-2xl shadow p-4 border-l-4 border-yellow-400">
+      {/* Post Header */}
+      <div className="flex justify-between items-center mb-2">
+        <span className="font-black text-[#0a4d2a] text-sm">{post.author_name}</span>
+        <span className="bg-yellow-400 text-[#0a4d2a] px-2 py-1 rounded text-xs font-bold">{post.location}</span>
       </div>
 
-      {/* FEED */}
-      <div className="mt-6 space-y-4">
-        {posts.map(post => (
-          <div key={post.id} className="bg-white rounded-2xl shadow p-4 border-l-4 border-yellow-400">
-            <div className="flex justify-between">
-              <span className="font-black text-[#0a4d2a]">{post.author_name}</span>
-              <span className="bg-yellow-400 text-[#0a4d2a] px-2 py-1 rounded text-xs font-bold">{post.location}</span>
-            </div>
-            <p className="mt-2 text-gray-800">{post.content}</p>
-            <div className="mt-3 text-xs text-gray-500">{new Date(post.created_at).toLocaleString()} • {post.post_type}</div>
+      {/* Post Content */}
+      <p className="text-gray-800 mb-3">{post.content}</p>
+
+      {/* Stats */}
+      <div className="flex justify-between text-xs text-gray-500 mb-3 border-b pb-2">
+        <span>{likes} likes</span>
+        <span>{comments.length} comments • 0 shares</span>
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-4 mb-4">
+        <button
+          onClick={handleLike}
+          className={`flex items-center gap-1 px-4 py-2 rounded-xl font-bold ${liked? 'bg-blue-50 text-blue-600' : 'text-gray-600'}`}
+        >
+          ♥ {liked? 'Liked' : 'Like'}
+        </button>
+        <button className="flex items-center gap-1 text-gray-600">💬 Comment</button>
+        <button className="flex items-center gap-1 text-gray-600">↗ Share</button>
+      </div>
+
+      {/* Comments - NO MORE DUPLICATES */}
+      <div className="space-y-2">
+        {comments.map((c, idx) => (
+          <div key={`${c.id}-${idx}`} className="bg-gray-50 rounded-xl p-3">
+            <p className="font-bold text-sm text-gray-800">{c.author_name}</p>
+            <p className="text-sm text-gray-700">{c.content}</p>
           </div>
         ))}
       </div>
+
+      {/* Add Comment */}
+      <div className="flex gap-2 mt-4">
+        <input
+          value={newComment}
+          onChange={e => setNewComment(e.target.value)}
+          placeholder="Add a work-related comment..."
+          className="flex-1 bg-gray-50 border rounded-full px-4 py-2 text-sm outline-none focus:border-[#0a4d2a]"
+          onKeyDown={e => e.key === 'Enter' && handleComment()}
+        />
+        <button onClick={handleComment} className="bg-black text-white px-5 py-2 rounded-full text-sm font-bold">Send</button>
+      </div>
     </div>
   )
-}
+                                       }
