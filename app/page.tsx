@@ -1,28 +1,51 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+type View =
+  | "home"
+  | "work"
+  | "talent"
+  | "jobs"
+  | "timeline"
+  | "business"
+  | "operations"
+  | "settings";
+
 type Person = {
   id?: string;
+  name: string;
+  job_title?: string | null;
+  town?: string | null;
+  province?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  experience?: string | null;
+  skills?: string | null;
+  availability?: string | null;
+  headline?: string | null;
+  profile_photo_url?: string | null;
+  timeline_enabled?: boolean | null;
+  profile_completion?: number | null;
+  verification_status?: string | null;
+  ats_score?: number | null;
+  cv_status?: string | null;
+};
+
+type Business = {
+  id?: string;
   name?: string;
-  job_title?: string;
+  company_name?: string;
   town?: string;
   province?: string;
+  description?: string;
   phone?: string;
   email?: string;
-  experience?: string;
-  skills?: string;
-  availability?: string;
-  profile_visibility?: string;
-  verification_status?: string;
-  profile_completion?: number;
-  ats_score?: number | null;
-  cv_status?: string;
 };
 
 type Opportunity = {
@@ -35,39 +58,26 @@ type Opportunity = {
   experience_required?: string;
   skills_required?: string;
   application_email?: string;
-  status?: string;
   closing_date?: string;
+  business_id?: string;
   created_at?: string;
-};
-
-type Business = {
-  id?: string;
-  business_name?: string;
-  email?: string;
-  phone?: string;
-  province?: string;
-  town?: string;
-  industry?: string;
-  description?: string;
-  verification_status?: string;
-  profile_visibility?: string;
 };
 
 type CVDocument = {
   id: string;
   job_seeker_id?: string | null;
-  file_name?: string;
-  file_path?: string;
-  file_type?: string;
-  file_size?: number;
-  status?: string;
+  file_name?: string | null;
+  file_path?: string | null;
+  file_type?: string | null;
+  file_size?: number | null;
+  status?: string | null;
   ats_score?: number | null;
-  created_at?: string;
+  created_at?: string | null;
 };
 
 type CVAnalysis = {
-  id?: string;
-  cv_id?: string;
+  id: string;
+  cv_id?: string | null;
   overall_score?: number | null;
   structure_score?: number | null;
   experience_score?: number | null;
@@ -75,10 +85,39 @@ type CVAnalysis = {
   contact_score?: number | null;
   keywords_score?: number | null;
   readability_score?: number | null;
-  strengths?: string;
-  weaknesses?: string;
-  recommendations?: string;
-  analysis_status?: string;
+  strengths?: string | null;
+  weaknesses?: string | null;
+  recommendations?: string | null;
+  analysis_status?: string | null;
+};
+
+type Post = {
+  id: string;
+  author_type: string;
+  author_id?: string | null;
+  post_type: string;
+  content?: string | null;
+  title?: string | null;
+  location?: string | null;
+  opportunity_id?: string | null;
+  job_seeker_id?: string | null;
+  business_id?: string | null;
+  visibility?: string | null;
+  likes_count?: number | null;
+  comments_count?: number | null;
+  shares_count?: number | null;
+  status?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+type Comment = {
+  id: string;
+  post_id: string;
+  author_type: string;
+  author_id?: string | null;
+  content: string;
+  created_at?: string | null;
 };
 
 const provinces = [
@@ -93,176 +132,119 @@ const provinces = [
   "Western Cape",
 ];
 
-const navItems = [
-  ["home", "⌂", "Home"],
-  ["work", "✦", "My Work"],
-  ["cv", "▣", "CV Intelligence"],
-  ["talent", "◉", "Talent"],
-  ["jobs", "◆", "Opportunities"],
-  ["business", "▤", "Business"],
-  ["operations", "◌", "Operations"],
-  ["settings", "⚙", "Settings"],
+const employmentTypes = [
+  "Full-time",
+  "Part-time",
+  "Temporary",
+  "Contract",
+  "Casual",
+  "Internship",
+  "Learnership",
 ];
 
 function clean(value: unknown) {
-  return String(value ?? "").trim();
+  return typeof value === "string" ? value.trim() : "";
 }
 
-function calculateCompletion(person: Partial<Person>) {
-  const fields = [
-    person.name,
-    person.job_title,
-    person.town,
-    person.province,
-    person.phone,
-    person.experience,
-    person.skills,
-    person.availability,
-  ];
+function formatDate(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
 
-  return Math.round(
-    (fields.filter((field) => clean(field).length > 0).length / fields.length) *
-      100
-  );
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleDateString("en-ZA", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
-function scoreCV(file: File) {
-  let score = 50;
+function timeAgo(value?: string | null) {
+  if (!value) return "";
 
-  if (file.name.toLowerCase().endsWith(".pdf")) score += 10;
-  if (
-    file.name.toLowerCase().endsWith(".doc") ||
-    file.name.toLowerCase().endsWith(".docx")
-  )
-    score += 10;
+  const date = new Date(value).getTime();
+  const now = Date.now();
+  const seconds = Math.max(1, Math.floor((now - date) / 1000));
 
-  if (file.size > 20 * 1024) score += 10;
-  if (file.size < 5 * 1024 * 1024) score += 10;
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d`;
 
-  return Math.min(score, 90);
+  return formatDate(value);
 }
 
-function formatBytes(bytes = 0) {
-  if (!bytes) return "0 KB";
-  return `${Math.round(bytes / 1024)} KB`;
+function normalizeSkills(value?: string | null) {
+  if (!value) return [];
+
+  return value
+    .split(",")
+    .map((skill) => skill.trim())
+    .filter(Boolean);
 }
 
-function AppCard({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`rounded-3xl border border-slate-200 bg-white shadow-sm ${className}`}
-    >
-      {children}
-    </div>
-  );
+function scoreBar(score?: number | null) {
+  const safe = Math.max(0, Math.min(100, Number(score || 0)));
+  return `${safe}%`;
 }
 
-function SectionTitle({
-  eyebrow,
-  title,
-  text,
-}: {
-  eyebrow?: string;
-  title: string;
-  text?: string;
-}) {
-  return (
-    <div className="mb-6">
-      {eyebrow && (
-        <div className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600">
-          {eyebrow}
-        </div>
-      )}
-      <h2 className="text-2xl font-black tracking-tight text-slate-950">
-        {title}
-      </h2>
-      {text && <p className="mt-2 max-w-3xl text-sm text-slate-500">{text}</p>}
-    </div>
-  );
-}
+export default function Home() {
+  const [view, setView] = useState<View>("home");
 
-function ScoreRing({ score }: { score: number }) {
-  return (
-    <div className="relative flex h-36 w-36 items-center justify-center rounded-full border-[12px] border-indigo-100">
-      <div className="absolute inset-[-12px] rounded-full border-[12px] border-indigo-600 border-r-transparent border-b-transparent rotate-[-35deg]" />
-      <div className="text-center">
-        <div className="text-4xl font-black text-slate-950">{score}</div>
-        <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-          / 100
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ScoreBar({
-  label,
-  score,
-}: {
-  label: string;
-  score: number;
-}) {
-  return (
-    <div>
-      <div className="mb-2 flex justify-between text-sm">
-        <span className="font-semibold text-slate-700">{label}</span>
-        <span className="font-black text-slate-950">{score}/100</span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-        <div
-          className="h-full rounded-full bg-indigo-600 transition-all"
-          style={{ width: `${score}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-export default function GuardianWorkV53() {
-  const [view, setView] = useState("home");
   const [people, setPeople] = useState<Person[]>([]);
-  const [jobs, setJobs] = useState<Opportunity[]>([]);
   const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [cvDocuments, setCvDocuments] = useState<CVDocument[]>([]);
-  const [selectedCV, setSelectedCV] = useState<CVDocument | null>(null);
-  const [analysis, setAnalysis] = useState<CVAnalysis | null>(null);
+  const [cvAnalyses, setCvAnalyses] = useState<CVAnalysis[]>([]);
+
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [comments, setComments] = useState<Record<string, Comment[]>>({});
+  const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
+  const [commentInputs, setCommentInputs] = useState<Record<string, string>>(
+    {}
+  );
 
   const [loading, setLoading] = useState(true);
+  const [timelineLoading, setTimelineLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
 
-  const [search, setSearch] = useState("");
+  const [searchPeople, setSearchPeople] = useState("");
   const [provinceFilter, setProvinceFilter] = useState("");
   const [townFilter, setTownFilter] = useState("");
+  const [skillFilter, setSkillFilter] = useState("");
 
-  const [personForm, setPersonForm] = useState({
+  const [searchJobs, setSearchJobs] = useState("");
+  const [jobProvinceFilter, setJobProvinceFilter] = useState("");
+
+  const [newPost, setNewPost] = useState("");
+  const [newPostType, setNewPostType] = useState("general");
+  const [newPostLocation, setNewPostLocation] = useState("");
+
+  const [showPostComposer, setShowPostComposer] = useState(false);
+
+  const [workForm, setWorkForm] = useState({
     name: "",
     job_title: "",
-    town: "",
     province: "",
+    town: "",
     phone: "",
+    email: "",
     experience: "",
     skills: "",
-    availability: "Available",
+    availability: "Available for work",
+    headline: "",
   });
 
   const [businessForm, setBusinessForm] = useState({
-    business_name: "",
-    email: "",
-    phone: "",
+    name: "",
     province: "",
     town: "",
-    industry: "",
     description: "",
+    phone: "",
+    email: "",
   });
 
-  const [jobForm, setJobForm] = useState({
+  const [opportunityForm, setOpportunityForm] = useState({
     title: "",
     description: "",
     province: "",
@@ -272,1612 +254,2491 @@ export default function GuardianWorkV53() {
     skills_required: "",
     application_email: "",
     closing_date: "",
+    business_id: "",
   });
 
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploadingCV, setUploadingCV] = useState(false);
+  const [selectedCV, setSelectedCV] = useState<CVDocument | null>(null);
 
-  const showMessage = (text: string) => {
-    setMessage(text);
-    setError("");
-    setTimeout(() => setMessage(""), 5000);
-  };
+  const [currentPerson, setCurrentPerson] = useState<Person | null>(null);
 
-  const showError = (text: string) => {
-    setError(text);
-    setMessage("");
-  };
+  useEffect(() => {
+    loadEverything();
+  }, []);
 
-  async function loadData() {
+  async function loadEverything() {
     setLoading(true);
-    setError("");
 
-    try {
-      const [peopleResult, jobsResult, businessesResult, cvsResult] =
-        await Promise.all([
-          supabase.from("Job seekers").select("*"),
-          supabase.from("opportunities").select("*"),
-          supabase.from("businesses").select("*"),
-          supabase
-            .from("cv_documents")
-            .select("*")
-            .order("created_at", { ascending: false }),
-        ]);
+    await Promise.all([
+      loadPeople(),
+      loadBusinesses(),
+      loadOpportunities(),
+      loadCVs(),
+      loadTimeline(),
+    ]);
 
-      if (peopleResult.error) throw peopleResult.error;
-      if (jobsResult.error) throw jobsResult.error;
-      if (businessesResult.error) throw businessesResult.error;
+    setLoading(false);
+  }
 
-      setPeople(peopleResult.data || []);
-      setJobs(jobsResult.data || []);
-      setBusinesses(businessesResult.data || []);
+  async function loadPeople() {
+    const { data, error } = await supabase
+      .from("Job seekers")
+      .select("*");
 
-      if (!cvsResult.error) {
-        setCvDocuments(cvsResult.data || []);
-      }
-    } catch (err: any) {
-      showError(
-        err?.message ||
-          "Database connection issue. Please check your Supabase tables."
-      );
-    } finally {
-      setLoading(false);
+    if (!error && data) {
+      setPeople(data as Person[]);
+      setCurrentPerson((data[0] as Person) || null);
     }
   }
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  async function loadBusinesses() {
+    const { data } = await supabase
+      .from("businesses")
+      .select("*");
+
+    if (data) setBusinesses(data as Business[]);
+  }
+
+  async function loadOpportunities() {
+    const { data } = await supabase
+      .from("opportunities")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (data) setOpportunities(data as Opportunity[]);
+  }
+
+  async function loadCVs() {
+    const { data } = await supabase
+      .from("cv_documents")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (!data) return;
+
+    const cvs = data as CVDocument[];
+    setCvDocuments(cvs);
+
+    if (cvs.length > 0) {
+      setSelectedCV(cvs[0]);
+
+      const ids = cvs.map((cv) => cv.id);
+
+      const { data: analyses } = await supabase
+        .from("cv_analysis")
+        .select("*")
+        .in("cv_id", ids)
+        .order("created_at", { ascending: false });
+
+      if (analyses) {
+        setCvAnalyses(analyses as CVAnalysis[]);
+      }
+    }
+  }
+
+  async function loadTimeline() {
+    setTimelineLoading(true);
+
+    const { data, error } = await supabase
+      .from("posts")
+      .select("*")
+      .eq("status", "published")
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (!error && data) {
+      const loadedPosts = data as Post[];
+      setPosts(loadedPosts);
+
+      if (loadedPosts.length) {
+        const postIds = loadedPosts.map((post) => post.id);
+
+        const { data: existingLikes } = await supabase
+          .from("post_likes")
+          .select("post_id")
+          .in("post_id", postIds);
+
+        if (existingLikes) {
+          const likeMap: Record<string, boolean> = {};
+
+          existingLikes.forEach((like: { post_id: string }) => {
+            likeMap[like.post_id] = true;
+          });
+
+          setLikedPosts(likeMap);
+        }
+
+        const { data: existingComments } = await supabase
+          .from("post_comments")
+          .select("*")
+          .in("post_id", postIds)
+          .order("created_at", { ascending: true });
+
+        if (existingComments) {
+          const grouped: Record<string, Comment[]> = {};
+
+          (existingComments as Comment[]).forEach((comment) => {
+            if (!grouped[comment.post_id]) {
+              grouped[comment.post_id] = [];
+            }
+
+            grouped[comment.post_id].push(comment);
+          });
+
+          setComments(grouped);
+        }
+      }
+    }
+
+    setTimelineLoading(false);
+  }
+
+  function goTo(nextView: View) {
+    setView(nextView);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function createWorkIdentity() {
+    setMessage("");
+
+    if (!clean(workForm.name) || !clean(workForm.job_title)) {
+      setMessage("Name and job title are required.");
+      return;
+    }
+
+    const completionFields = [
+      workForm.name,
+      workForm.job_title,
+      workForm.province,
+      workForm.town,
+      workForm.phone,
+      workForm.email,
+      workForm.experience,
+      workForm.skills,
+      workForm.availability,
+      workForm.headline,
+    ];
+
+    const completed = completionFields.filter((field) =>
+      clean(field)
+    ).length;
+
+    const profileCompletion = Math.round(
+      (completed / completionFields.length) * 100
+    );
+
+    const { data, error } = await supabase
+      .from("Job seekers")
+      .insert({
+        name: clean(workForm.name),
+        job_title: clean(workForm.job_title),
+        province: clean(workForm.province),
+        town: clean(workForm.town),
+        phone: clean(workForm.phone),
+        email: clean(workForm.email),
+        experience: clean(workForm.experience),
+        skills: clean(workForm.skills),
+        availability: clean(workForm.availability),
+        headline: clean(workForm.headline),
+        profile_completion: profileCompletion,
+        profile_visibility: "discoverable",
+        verification_status: "unverified",
+        cv_status: "not_uploaded",
+        timeline_enabled: true,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    if (data) {
+      setCurrentPerson(data as Person);
+    }
+
+    setMessage(
+      "Work Identity created. Your ability can now become discoverable."
+    );
+
+    await loadPeople();
+  }
+
+  async function createBusiness() {
+    setMessage("");
+
+    if (!clean(businessForm.name)) {
+      setMessage("Business name is required.");
+      return;
+    }
+
+    const { error } = await supabase.from("businesses").insert({
+      name: clean(businessForm.name),
+      company_name: clean(businessForm.name),
+      province: clean(businessForm.province),
+      town: clean(businessForm.town),
+      description: clean(businessForm.description),
+      phone: clean(businessForm.phone),
+      email: clean(businessForm.email),
+    });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    setBusinessForm({
+      name: "",
+      province: "",
+      town: "",
+      description: "",
+      phone: "",
+      email: "",
+    });
+
+    setMessage("Business profile created.");
+    await loadBusinesses();
+  }
+
+  async function createOpportunity() {
+    setMessage("");
+
+    if (!clean(opportunityForm.title)) {
+      setMessage("Opportunity title is required.");
+      return;
+    }
+
+    const { error } = await supabase.from("opportunities").insert({
+      title: clean(opportunityForm.title),
+      description: clean(opportunityForm.description),
+      province: clean(opportunityForm.province),
+      town: clean(opportunityForm.town),
+      employment_type: clean(opportunityForm.employment_type),
+      experience_required: clean(opportunityForm.experience_required),
+      skills_required: clean(opportunityForm.skills_required),
+      application_email: clean(opportunityForm.application_email),
+      closing_date: opportunityForm.closing_date || null,
+      business_id: opportunityForm.business_id || null,
+    });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    setOpportunityForm({
+      title: "",
+      description: "",
+      province: "",
+      town: "",
+      employment_type: "Full-time",
+      experience_required: "",
+      skills_required: "",
+      application_email: "",
+      closing_date: "",
+      business_id: "",
+    });
+
+    setMessage("Opportunity published.");
+    await loadOpportunities();
+  }
+
+  async function createPost() {
+    setMessage("");
+
+    if (!clean(newPost)) {
+      setMessage("Write something first.");
+      return;
+    }
+
+    const authorId = currentPerson?.id || people[0]?.id || null;
+
+    const { error } = await supabase.from("posts").insert({
+      author_type: "person",
+      author_id: authorId,
+      job_seeker_id: authorId,
+      post_type: newPostType,
+      content: clean(newPost),
+      location: clean(newPostLocation),
+      visibility: "public",
+      status: "published",
+    });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    setNewPost("");
+    setNewPostLocation("");
+    setNewPostType("general");
+    setShowPostComposer(false);
+
+    setMessage("Posted to the Work Discovery Timeline.");
+    await loadTimeline();
+  }
+
+  async function createOpportunityPost(opportunity: Opportunity) {
+    const authorId = currentPerson?.id || people[0]?.id || null;
+
+    const location = [opportunity.town, opportunity.province]
+      .filter(Boolean)
+      .join(", ");
+
+    const { error } = await supabase.from("posts").insert({
+      author_type: "person",
+      author_id: authorId,
+      job_seeker_id: authorId,
+      opportunity_id: opportunity.id || null,
+      post_type: "opportunity",
+      title: opportunity.title,
+      content:
+        opportunity.description ||
+        "A new work opportunity is available.",
+      location,
+      visibility: "public",
+      status: "published",
+    });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    setMessage("Opportunity shared to the Timeline.");
+    await loadTimeline();
+  }
+
+  async function toggleLike(post: Post) {
+    const authorId = currentPerson?.id || people[0]?.id || null;
+
+    const currentlyLiked = !!likedPosts[post.id];
+
+    if (currentlyLiked) {
+      const { error } = await supabase
+        .from("post_likes")
+        .delete()
+        .eq("post_id", post.id)
+        .eq("author_type", "person")
+        .eq("author_id", authorId);
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      await supabase
+        .from("posts")
+        .update({
+          likes_count: Math.max(0, Number(post.likes_count || 0) - 1),
+        })
+        .eq("id", post.id);
+
+      setLikedPosts((prev) => ({
+        ...prev,
+        [post.id]: false,
+      }));
+    } else {
+      const { error } = await supabase.from("post_likes").insert({
+        post_id: post.id,
+        author_type: "person",
+        author_id: authorId,
+      });
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      await supabase
+        .from("posts")
+        .update({
+          likes_count: Number(post.likes_count || 0) + 1,
+        })
+        .eq("id", post.id);
+
+      setLikedPosts((prev) => ({
+        ...prev,
+        [post.id]: true,
+      }));
+    }
+
+    await loadTimeline();
+  }
+
+  async function addComment(post: Post) {
+    const content = clean(commentInputs[post.id]);
+
+    if (!content) return;
+
+    const authorId = currentPerson?.id || people[0]?.id || null;
+
+    const { error } = await supabase.from("post_comments").insert({
+      post_id: post.id,
+      author_type: "person",
+      author_id: authorId,
+      content,
+    });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    await supabase
+      .from("posts")
+      .update({
+        comments_count: Number(post.comments_count || 0) + 1,
+      })
+      .eq("id", post.id);
+
+    setCommentInputs((prev) => ({
+      ...prev,
+      [post.id]: "",
+    }));
+
+    await loadTimeline();
+  }
+
+  async function sharePost(post: Post) {
+    const authorId = currentPerson?.id || people[0]?.id || null;
+
+    const { error } = await supabase.from("post_shares").insert({
+      post_id: post.id,
+      author_type: "person",
+      author_id: authorId,
+    });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    await supabase
+      .from("posts")
+      .update({
+        shares_count: Number(post.shares_count || 0) + 1,
+      })
+      .eq("id", post.id);
+
+    const shareText = post.title
+      ? `${post.title}\n${post.content || ""}`
+      : post.content || "Check this out on GUARDIAN WORK.";
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "GUARDIAN WORK",
+          text: shareText,
+        });
+      } catch {
+        // User cancelled native share.
+      }
+    } else if (navigator.clipboard) {
+      await navigator.clipboard.writeText(shareText);
+      setMessage("Post copied to clipboard.");
+    }
+
+    await loadTimeline();
+  }
+
+  async function uploadCV(file: File) {
+    setMessage("");
+
+    const allowed = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+
+    if (!allowed.includes(file.type)) {
+      setMessage("Please upload a PDF, DOC or DOCX file.");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setMessage("Maximum CV size is 10MB.");
+      return;
+    }
+
+    setUploadingCV(true);
+
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+    const path = `uploads/${crypto.randomUUID()}-${safeName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("cv-documents")
+      .upload(path, file, {
+        upsert: false,
+        contentType: file.type,
+      });
+
+    if (uploadError) {
+      setMessage(uploadError.message);
+      setUploadingCV(false);
+      return;
+    }
+
+    const { data: cv, error: dbError } = await supabase
+      .from("cv_documents")
+      .insert({
+        job_seeker_id: currentPerson?.id || people[0]?.id || null,
+        file_name: file.name,
+        file_path: path,
+        file_type: file.type,
+        file_size: file.size,
+        status: "uploaded",
+        ats_score: null,
+      })
+      .select()
+      .single();
+
+    if (dbError) {
+      setMessage(dbError.message);
+      setUploadingCV(false);
+      return;
+    }
+
+    if (cv) {
+      const preliminary = Math.min(
+        95,
+        Math.max(
+          45,
+          Math.round(
+            55 +
+              (file.type === "application/pdf" ? 15 : 8) +
+              Math.min(20, Math.round(file.size / 250000))
+          )
+        )
+      );
+
+      await supabase.from("cv_analysis").insert({
+        cv_id: cv.id,
+        overall_score: preliminary,
+        structure_score: preliminary,
+        experience_score: null,
+        skills_score: null,
+        contact_score: null,
+        keywords_score: null,
+        readability_score: null,
+        strengths:
+          "CV successfully uploaded and securely stored. Content analysis is the next intelligence layer.",
+        weaknesses:
+          "Detailed content-level analysis has not yet been completed.",
+        recommendations:
+          "Complete your Work Identity and connect your skills and experience.",
+        analysis_status: "awaiting_content_analysis",
+      });
+
+      await supabase
+        .from("Job seekers")
+        .update({
+          cv_status: "uploaded",
+          ats_score: preliminary,
+        })
+        .eq("id", currentPerson?.id || people[0]?.id || "");
+
+      setMessage(
+        "CV uploaded successfully. Preliminary readiness created."
+      );
+    }
+
+    setUploadingCV(false);
+    await loadCVs();
+    await loadPeople();
+  }
 
   const filteredPeople = useMemo(() => {
-    const q = search.toLowerCase();
+    const search = searchPeople.toLowerCase();
 
     return people.filter((person) => {
-      const searchable = [
+      const haystack = [
         person.name,
         person.job_title,
         person.town,
         person.province,
         person.skills,
         person.experience,
+        person.headline,
       ]
+        .filter(Boolean)
         .join(" ")
         .toLowerCase();
 
-      const matchesSearch = !q || searchable.includes(q);
+      const matchesSearch = !search || haystack.includes(search);
+
       const matchesProvince =
         !provinceFilter || person.province === provinceFilter;
+
       const matchesTown =
         !townFilter ||
-        clean(person.town).toLowerCase().includes(townFilter.toLowerCase());
+        clean(person.town)
+          .toLowerCase()
+          .includes(townFilter.toLowerCase());
+
+      const matchesSkill =
+        !skillFilter ||
+        clean(person.skills)
+          .toLowerCase()
+          .includes(skillFilter.toLowerCase());
 
       return (
         matchesSearch &&
         matchesProvince &&
         matchesTown &&
-        person.profile_visibility !== "hidden"
+        matchesSkill
       );
     });
-  }, [people, search, provinceFilter, townFilter]);
+  }, [
+    people,
+    searchPeople,
+    provinceFilter,
+    townFilter,
+    skillFilter,
+  ]);
 
   const filteredJobs = useMemo(() => {
-    const q = search.toLowerCase();
+    const search = searchJobs.toLowerCase();
 
-    return jobs.filter((job) => {
-      const searchable = [
+    return opportunities.filter((job) => {
+      const haystack = [
         job.title,
         job.description,
-        job.province,
         job.town,
+        job.province,
         job.skills_required,
-        job.experience_required,
+        job.employment_type,
       ]
+        .filter(Boolean)
         .join(" ")
         .toLowerCase();
 
       return (
-        (!q || searchable.includes(q)) &&
-        (!provinceFilter || job.province === provinceFilter)
+        (!search || haystack.includes(search)) &&
+        (!jobProvinceFilter || job.province === jobProvinceFilter)
       );
     });
-  }, [jobs, search, provinceFilter]);
+  }, [opportunities, searchJobs, jobProvinceFilter]);
 
-  const provinceStats = useMemo(() => {
-    return provinces.map((province) => ({
-      province,
-      count: people.filter((person) => person.province === province).length,
-    }));
-  }, [people]);
+  const latestAnalysis = selectedCV
+    ? cvAnalyses.find((analysis) => analysis.cv_id === selectedCV.id)
+    : null;
 
-  async function createWorkIdentity(e: React.FormEvent) {
-    e.preventDefault();
+  const latestScore = latestAnalysis?.overall_score ?? selectedCV?.ats_score ?? 0;
 
-    if (!personForm.name || !personForm.job_title || !personForm.province) {
-      showError("Please add your name, work role and province.");
-      return;
-    }
+  const navItems: { id: View; label: string; icon: string }[] = [
+    { id: "home", label: "Home", icon: "⌂" },
+    { id: "work", label: "My Work", icon: "◉" },
+    { id: "timeline", label: "Timeline", icon: "✦" },
+    { id: "talent", label: "Talent", icon: "◎" },
+    { id: "jobs", label: "Jobs", icon: "▣" },
+    { id: "business", label: "Business", icon: "▤" },
+  ];
 
-    try {
-      const completion = calculateCompletion(personForm);
-
-      const { error: insertError } = await supabase
-        .from("Job seekers")
-        .insert({
-          name: personForm.name,
-          job_title: personForm.job_title,
-          town: personForm.town,
-          province: personForm.province,
-          phone: personForm.phone,
-          experience: personForm.experience,
-          skills: personForm.skills,
-          availability: personForm.availability,
-          profile_visibility: "discoverable",
-          verification_status: "unverified",
-          profile_completion: completion,
-          ats_score: null,
-          cv_status: "not_uploaded",
-        });
-
-      if (insertError) throw insertError;
-
-      setPersonForm({
-        name: "",
-        job_title: "",
-        town: "",
-        province: "",
-        phone: "",
-        experience: "",
-        skills: "",
-        availability: "Available",
-      });
-
-      await loadData();
-      showMessage("Your Work Identity has been created.");
-      setView("work");
-    } catch (err: any) {
-      showError(err?.message || "Could not create Work Identity.");
-    }
-  }
-
-  async function createBusiness(e: React.FormEvent) {
-    e.preventDefault();
-
-    if (!businessForm.business_name || !businessForm.province) {
-      showError("Please add the business name and province.");
-      return;
-    }
-
-    try {
-      const { error: insertError } = await supabase
-        .from("businesses")
-        .insert({
-          business_name: businessForm.business_name,
-          email: businessForm.email,
-          phone: businessForm.phone,
-          province: businessForm.province,
-          town: businessForm.town,
-          industry: businessForm.industry,
-          description: businessForm.description,
-          verification_status: "unverified",
-          profile_visibility: "discoverable",
-        });
-
-      if (insertError) throw insertError;
-
-      setBusinessForm({
-        business_name: "",
-        email: "",
-        phone: "",
-        province: "",
-        town: "",
-        industry: "",
-        description: "",
-      });
-
-      await loadData();
-      showMessage("Business profile created.");
-    } catch (err: any) {
-      showError(err?.message || "Could not create business profile.");
-    }
-  }
-
-  async function createOpportunity(e: React.FormEvent) {
-    e.preventDefault();
-
-    if (!jobForm.title || !jobForm.province || !jobForm.application_email) {
-      showError("Please add a title, province and application email.");
-      return;
-    }
-
-    try {
-      const { error: insertError } = await supabase
-        .from("opportunities")
-        .insert({
-          title: jobForm.title,
-          description: jobForm.description,
-          province: jobForm.province,
-          town: jobForm.town,
-          employment_type: jobForm.employment_type,
-          experience_required: jobForm.experience_required,
-          skills_required: jobForm.skills_required,
-          application_email: jobForm.application_email,
-          status: "open",
-          closing_date: jobForm.closing_date || null,
-        });
-
-      if (insertError) throw insertError;
-
-      setJobForm({
-        title: "",
-        description: "",
-        province: "",
-        town: "",
-        employment_type: "Full-time",
-        experience_required: "",
-        skills_required: "",
-        application_email: "",
-        closing_date: "",
-      });
-
-      await loadData();
-      showMessage("Opportunity published.");
-      setView("jobs");
-    } catch (err: any) {
-      showError(err?.message || "Could not publish opportunity.");
-    }
-  }
-
-  async function uploadCV(file: File) {
-    setUploading(true);
-    setError("");
-    setMessage("");
-
-    try {
-      const allowed = [
-        "application/pdf",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      ];
-
-      if (!allowed.includes(file.type)) {
-        throw new Error("Please upload a PDF, DOC or DOCX CV.");
-      }
-
-      if (file.size > 10 * 1024 * 1024) {
-        throw new Error("CV must be smaller than 10 MB.");
-      }
-
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const path = `uploads/${crypto.randomUUID()}-${safeName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("cv-documents")
-        .upload(path, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (uploadError) throw uploadError;
-
-      const estimatedScore = scoreCV(file);
-
-      const { data, error: insertError } = await supabase
-        .from("cv_documents")
-        .insert({
-          file_name: file.name,
-          file_path: path,
-          file_type: file.type,
-          file_size: file.size,
-          status: "uploaded",
-          ats_score: null,
-        })
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      const cv = data as CVDocument;
-
-      /*
-       * V5.3 deliberately does NOT pretend that an uploaded document
-       * has been AI-read. The upload is real. The analysis engine will
-       * be connected to secure server-side document extraction next.
-       */
-      const draftAnalysis: CVAnalysis = {
-        cv_id: cv.id,
-        overall_score: estimatedScore,
-        structure_score: 70,
-        experience_score: 65,
-        skills_score: 60,
-        contact_score: 80,
-        keywords_score: 55,
-        readability_score: 70,
-        strengths:
-          "Your CV file has been received successfully. The next analysis stage will inspect its actual content.",
-        weaknesses:
-          "Content-level ATS analysis is waiting for the secure document-reading engine.",
-        recommendations:
-          "Keep your job title clear, use specific skills, describe measurable experience and ensure your contact details are easy to find.",
-        analysis_status: "awaiting_content_analysis",
-      };
-
-      setSelectedCV(cv);
-      setAnalysis(draftAnalysis);
-
-      await supabase.from("cv_analysis").insert(draftAnalysis);
-
-      await loadData();
-      showMessage(
-        "CV uploaded successfully. Content analysis is the next intelligence layer."
-      );
-    } catch (err: any) {
-      showError(
-        err?.message ||
-          "CV upload failed. Check the cv-documents storage bucket and its policies."
-      );
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  function openCVPicker() {
-    fileInputRef.current?.click();
-  }
-
-  async function handleCVInput(
-    e: React.ChangeEvent<HTMLInputElement>
-  ) {
-    const file = e.target.files?.[0];
-
-    if (file) {
-      await uploadCV(file);
-    }
-
-    e.target.value = "";
-  }
-
-  async function loadCVAnalysis(cv: CVDocument) {
-    setSelectedCV(cv);
-
-    const { data, error: analysisError } = await supabase
-      .from("cv_analysis")
-      .select("*")
-      .eq("cv_id", cv.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (!analysisError && data) {
-      setAnalysis(data);
-    } else {
-      setAnalysis(null);
-    }
-
-    setView("cv");
-  }
-
-  function applyViaEmail(job: Opportunity) {
-    if (!job.application_email) {
-      showError("This opportunity has no application email.");
-      return;
-    }
-
-    const subject = encodeURIComponent(
-      `Application: ${job.title || "Opportunity"}`
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-[#07111f] text-white flex items-center justify-center">
+        <div className="text-center px-6">
+          <div className="mx-auto mb-5 h-14 w-14 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center text-2xl">
+            🛡️
+          </div>
+          <h1 className="text-xl font-bold">GUARDIAN WORK</h1>
+          <p className="text-white/50 mt-2 text-sm">
+            Building your work discovery network...
+          </p>
+        </div>
+      </main>
     );
-
-    const body = encodeURIComponent(
-      `Hello,\n\nI would like to apply for ${job.title || "this opportunity"}.\n\nI found the opportunity through GUARDIAN WORK.\n\nKind regards`
-    );
-
-    window.location.href = `mailto:${job.application_email}?subject=${subject}&body=${body}`;
   }
-
-  function contactPerson(person: Person) {
-    const raw = clean(person.phone).replace(/[^\d+]/g, "");
-
-    if (!raw) {
-      showError("This person has not added a phone number.");
-      return;
-    }
-
-    let phone = raw;
-
-    if (phone.startsWith("0")) {
-      phone = "27" + phone.substring(1);
-    } else if (phone.startsWith("+")) {
-      phone = phone.substring(1);
-    }
-
-    window.open(`https://wa.me/${phone}`, "_blank");
-  }
-
-  const latestCV = cvDocuments[0];
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      {/* MOBILE / DESKTOP HEADER */}
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 lg:px-6">
-          <button
-            onClick={() => setView("home")}
-            className="flex items-center gap-3"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-lg font-black text-white">
-              G
-            </div>
-            <div className="text-left">
-              <div className="text-lg font-black tracking-tight">
-                GUARDIAN WORK
+    <main className="min-h-screen bg-[#f5f7fb] text-slate-900 pb-24">
+      {/* HEADER */}
+      <header className="sticky top-0 z-50 bg-[#07111f]/95 backdrop-blur-xl border-b border-white/10 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="h-16 flex items-center justify-between">
+            <button
+              onClick={() => goTo("home")}
+              className="flex items-center gap-3"
+            >
+              <div className="h-10 w-10 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center">
+                🛡️
               </div>
-              <div className="hidden text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-600 sm:block">
-                Make your ability discoverable
-              </div>
-            </div>
-          </button>
 
-          <div className="hidden items-center gap-2 md:flex">
-            <button
-              onClick={() => setView("cv")}
-              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-indigo-700"
-            >
-              CV Intelligence
+              <div className="text-left">
+                <div className="font-black tracking-tight">
+                  GUARDIAN <span className="text-sky-300">WORK</span>
+                </div>
+                <div className="text-[10px] text-white/40 tracking-[0.2em] uppercase">
+                  Make ability discoverable
+                </div>
+              </div>
             </button>
+
+            <div className="hidden lg:flex items-center gap-1">
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => goTo(item.id)}
+                  className={`px-3 py-2 rounded-xl text-sm transition ${
+                    view === item.id
+                      ? "bg-white/10 text-white"
+                      : "text-white/60 hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  <span className="mr-2">{item.icon}</span>
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
             <button
-              onClick={() => setView("work")}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold hover:bg-slate-50"
+              onClick={() => goTo("settings")}
+              className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10"
             >
-              My Work
+              ⚙
             </button>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-7xl">
-        {/* SIDEBAR */}
-        <aside className="hidden min-h-[calc(100vh-73px)] w-64 shrink-0 border-r border-slate-200 bg-white p-4 lg:block">
-          <div className="space-y-1">
-            {navItems.map(([key, icon, label]) => (
-              <button
-                key={key}
-                onClick={() => setView(key)}
-                className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold transition ${
-                  view === key
-                    ? "bg-slate-950 text-white"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                <span className="text-base">{icon}</span>
-                {label}
-              </button>
-            ))}
+      {/* MESSAGE */}
+      {message && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] max-w-[92vw]">
+          <div className="rounded-2xl bg-[#07111f] text-white px-5 py-3 shadow-2xl border border-white/10 text-sm">
+            {message}
           </div>
+        </div>
+      )}
 
-          <div className="mt-8 rounded-3xl bg-indigo-50 p-5">
-            <div className="text-xs font-black uppercase tracking-widest text-indigo-600">
-              V5.3
-            </div>
-            <div className="mt-2 text-lg font-black">
-              CV Intelligence
-            </div>
-            <p className="mt-2 text-xs leading-5 text-slate-500">
-              Turn a CV into a stronger discovery signal.
-            </p>
-          </div>
-        </aside>
+      {/* CONTENT */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-7">
+        {/* HOME */}
+        {view === "home" && (
+          <div className="space-y-8">
+            <section className="rounded-[2rem] bg-[#07111f] text-white overflow-hidden relative">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(56,189,248,.18),transparent_35%),radial-gradient(circle_at_20%_90%,rgba(168,85,247,.14),transparent_35%)]" />
 
-        {/* MAIN */}
-        <main className="min-w-0 flex-1 p-4 pb-28 sm:p-6 lg:p-8">
-          {message && (
-            <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-              ✓ {message}
-            </div>
-          )}
-
-          {error && (
-            <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-              {error}
-            </div>
-          )}
-
-          {loading && (
-            <div className="mb-5 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-500">
-              Loading GUARDIAN WORK data…
-            </div>
-          )}
-
-          {/* HOME */}
-          {view === "home" && (
-            <div className="space-y-8">
-              <section className="overflow-hidden rounded-[2rem] bg-slate-950 p-7 text-white sm:p-10">
-                <div className="max-w-3xl">
-                  <div className="mb-4 inline-flex rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-indigo-200">
-                    GUARDIAN WORK V5.3
-                  </div>
-
-                  <h1 className="text-4xl font-black leading-tight tracking-tight sm:text-6xl">
-                    Your CV should open doors.
-                  </h1>
-
-                  <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
-                    Upload your CV, understand its readiness, identify what
-                    needs improvement and build a stronger Work Identity.
-                  </p>
-
-                  <div className="mt-8 flex flex-wrap gap-3">
-                    <button
-                      onClick={() => setView("cv")}
-                      className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950"
-                    >
-                      Open CV Intelligence →
-                    </button>
-                    <button
-                      onClick={() => setView("work")}
-                      className="rounded-2xl border border-white/20 px-5 py-3 text-sm font-bold text-white"
-                    >
-                      Build Work Identity
-                    </button>
-                  </div>
+              <div className="relative px-6 sm:px-10 py-12 sm:py-16 max-w-4xl">
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-sky-200 mb-6">
+                  <span>●</span>
+                  V5.4 — Work Discovery Timeline
                 </div>
-              </section>
 
-              <div className="grid gap-5 md:grid-cols-3">
-                {[
-                  [
-                    "01",
-                    "Work Identity",
-                    "Show people what you can actually do.",
-                  ],
-                  [
-                    "02",
-                    "CV Intelligence",
-                    "Understand how ready your CV is for discovery.",
-                  ],
-                  [
-                    "03",
-                    "Opportunity",
-                    "Connect your ability to real opportunities.",
-                  ],
-                ].map(([number, title, text]) => (
-                  <AppCard key={number} className="p-6">
-                    <div className="text-xs font-black text-indigo-600">
-                      {number}
-                    </div>
-                    <h3 className="mt-3 text-xl font-black">{title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-500">
-                      {text}
-                    </p>
-                  </AppCard>
-                ))}
+                <h1 className="text-4xl sm:text-6xl font-black tracking-tight leading-[0.95]">
+                  Make your
+                  <span className="block text-sky-300">
+                    ability discoverable.
+                  </span>
+                </h1>
+
+                <p className="mt-6 text-white/65 text-base sm:text-lg max-w-2xl leading-7">
+                  GUARDIAN WORK connects businesses to kasi people by
+                  turning skills, experience and real work activity into
+                  discoverable opportunities.
+                </p>
+
+                <div className="mt-8 flex flex-wrap gap-3">
+                  <button
+                    onClick={() => goTo("work")}
+                    className="px-5 py-3 rounded-xl bg-white text-[#07111f] font-bold hover:scale-[1.02] transition"
+                  >
+                    Build My Work Identity
+                  </button>
+
+                  <button
+                    onClick={() => goTo("timeline")}
+                    className="px-5 py-3 rounded-xl bg-white/10 border border-white/10 font-semibold hover:bg-white/15 transition"
+                  >
+                    Explore Timeline
+                  </button>
+                </div>
               </div>
+            </section>
 
-              <AppCard className="p-6 sm:p-8">
-                <SectionTitle
-                  eyebrow="The GUARDIAN principle"
-                  title="Discoverability comes before placement."
-                  text="GUARDIAN WORK is designed around the journey from ability → discoverability → opportunity → application → placement."
-                />
+            <section className="grid md:grid-cols-3 gap-4">
+              <MetricCard
+                number={people.length}
+                label="Discoverable people"
+                icon="◎"
+              />
+              <MetricCard
+                number={opportunities.length}
+                label="Opportunities"
+                icon="▣"
+              />
+              <MetricCard
+                number={posts.length}
+                label="Work conversations"
+                icon="✦"
+              />
+            </section>
 
-                <div className="grid gap-3 sm:grid-cols-5">
-                  {[
-                    "Ability",
-                    "Discoverability",
-                    "Opportunity",
-                    "Application",
-                    "Placement",
-                  ].map((item, index) => (
-                    <div
-                      key={item}
-                      className="rounded-2xl bg-slate-50 p-4 text-center"
-                    >
-                      <div className="text-xs font-black text-indigo-600">
-                        0{index + 1}
-                      </div>
-                      <div className="mt-2 text-sm font-black">{item}</div>
-                    </div>
-                  ))}
-                </div>
-              </AppCard>
-            </div>
-          )}
-
-          {/* WORK */}
-          {view === "work" && (
-            <div className="space-y-7">
-              <SectionTitle
-                eyebrow="Your professional identity"
-                title="My Work"
-                text="Create a discoverable identity based on what you can do—not only where you have worked."
+            <section className="grid lg:grid-cols-3 gap-5">
+              <FeatureCard
+                icon="◎"
+                title="Work Identity"
+                text="Show businesses what you can actually do."
+                onClick={() => goTo("work")}
               />
 
-              <div className="grid gap-6 xl:grid-cols-[1.1fr_.9fr]">
-                <AppCard className="p-6">
-                  <h3 className="text-xl font-black">Create Work Identity</h3>
+              <FeatureCard
+                icon="✦"
+                title="Work Discovery Timeline"
+                text="Turn your work story into discoverable signals."
+                onClick={() => goTo("timeline")}
+              />
 
-                  <form
-                    onSubmit={createWorkIdentity}
-                    className="mt-6 grid gap-4 sm:grid-cols-2"
+              <FeatureCard
+                icon="▣"
+                title="Opportunities"
+                text="Discover work that matches your ability."
+                onClick={() => goTo("jobs")}
+              />
+            </section>
+          </div>
+        )}
+
+        {/* WORK */}
+        {view === "work" && (
+          <div className="space-y-6">
+            <PageHeading
+              eyebrow="WORK IDENTITY"
+              title="Show the world what you can do."
+              text="Your Work Identity is more than a CV. It is your discoverability layer."
+            />
+
+            <div className="grid lg:grid-cols-[1.1fr_.9fr] gap-6">
+              <Card>
+                <SectionTitle
+                  title="Create Work Identity"
+                  subtitle="Complete the fields that help businesses understand your ability."
+                />
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Full name"
+                    value={workForm.name}
+                    onChange={(value) =>
+                      setWorkForm({ ...workForm, name: value })
+                    }
+                  />
+
+                  <Input
+                    label="What do you do?"
+                    placeholder="e.g. IT Technician"
+                    value={workForm.job_title}
+                    onChange={(value) =>
+                      setWorkForm({ ...workForm, job_title: value })
+                    }
+                  />
+
+                  <Select
+                    label="Province"
+                    value={workForm.province}
+                    onChange={(value) =>
+                      setWorkForm({ ...workForm, province: value })
+                    }
+                    options={provinces}
+                  />
+
+                  <Input
+                    label="Town / Area"
+                    value={workForm.town}
+                    onChange={(value) =>
+                      setWorkForm({ ...workForm, town: value })
+                    }
+                  />
+
+                  <Input
+                    label="Phone"
+                    value={workForm.phone}
+                    onChange={(value) =>
+                      setWorkForm({ ...workForm, phone: value })
+                    }
+                  />
+
+                  <Input
+                    label="Email"
+                    value={workForm.email}
+                    onChange={(value) =>
+                      setWorkForm({ ...workForm, email: value })
+                    }
+                  />
+
+                  <Input
+                    label="Experience"
+                    placeholder="e.g. 3 years retail"
+                    value={workForm.experience}
+                    onChange={(value) =>
+                      setWorkForm({ ...workForm, experience: value })
+                    }
+                  />
+
+                  <Input
+                    label="Skills"
+                    placeholder="Separate skills with commas"
+                    value={workForm.skills}
+                    onChange={(value) =>
+                      setWorkForm({ ...workForm, skills: value })
+                    }
+                  />
+
+                  <Select
+                    label="Availability"
+                    value={workForm.availability}
+                    onChange={(value) =>
+                      setWorkForm({ ...workForm, availability: value })
+                    }
+                    options={[
+                      "Available for work",
+                      "Available immediately",
+                      "Open to opportunities",
+                      "Currently working",
+                      "Looking for part-time work",
+                    ]}
+                  />
+
+                  <Input
+                    label="Headline"
+                    placeholder="A short statement about your ability"
+                    value={workForm.headline}
+                    onChange={(value) =>
+                      setWorkForm({ ...workForm, headline: value })
+                    }
+                  />
+                </div>
+
+                <button
+                  onClick={createWorkIdentity}
+                  className="mt-6 w-full sm:w-auto px-6 py-3 rounded-xl bg-[#07111f] text-white font-bold"
+                >
+                  Create Work Identity
+                </button>
+              </Card>
+
+              <div className="space-y-5">
+                <Card>
+                  <SectionTitle
+                    title="Your current identity"
+                    subtitle="What businesses can discover."
+                  />
+
+                  {currentPerson ? (
+                    <div>
+                      <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center text-2xl">
+                        ◎
+                      </div>
+
+                      <h3 className="mt-4 text-xl font-black">
+                        {currentPerson.name}
+                      </h3>
+
+                      <p className="text-sky-700 font-semibold mt-1">
+                        {currentPerson.job_title}
+                      </p>
+
+                      <p className="text-sm text-slate-500 mt-2">
+                        {[currentPerson.town, currentPerson.province]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </p>
+
+                      {currentPerson.headline && (
+                        <p className="mt-4 text-sm leading-6 text-slate-600">
+                          {currentPerson.headline}
+                        </p>
+                      )}
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {normalizeSkills(currentPerson.skills).map(
+                          (skill) => (
+                            <span
+                              key={skill}
+                              className="px-3 py-1.5 rounded-full bg-slate-100 text-xs font-semibold"
+                            >
+                              {skill}
+                            </span>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <EmptyState
+                      title="No Work Identity yet"
+                      text="Create one to begin building discoverability."
+                    />
+                  )}
+                </Card>
+
+                <Card>
+                  <SectionTitle
+                    title="CV Intelligence"
+                    subtitle="Upload your CV to begin building readiness signals."
+                  />
+
+                  <label className="block rounded-2xl border-2 border-dashed border-slate-200 p-6 text-center cursor-pointer hover:border-sky-300 hover:bg-sky-50/40 transition">
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) uploadCV(file);
+                      }}
+                    />
+
+                    <div className="text-3xl">📄</div>
+                    <div className="font-bold mt-2">
+                      {uploadingCV
+                        ? "Uploading CV..."
+                        : "Upload your CV"}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      PDF, DOC or DOCX • Max 10MB
+                    </div>
+                  </label>
+
+                  {selectedCV && (
+                    <div className="mt-5 rounded-2xl bg-slate-50 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="font-bold text-sm">
+                            {selectedCV.file_name}
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1">
+                            Uploaded {formatDate(selectedCV.created_at)}
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <div className="text-2xl font-black">
+                            {latestScore || "—"}
+                          </div>
+                          <div className="text-[10px] uppercase tracking-wider text-slate-400">
+                            readiness
+                          </div>
+                        </div>
+                      </div>
+
+                      {latestAnalysis && (
+                        <div className="mt-4 space-y-3">
+                          <ScoreRow
+                            label="Structure"
+                            score={latestAnalysis.structure_score}
+                          />
+                          <ScoreRow
+                            label="Experience"
+                            score={latestAnalysis.experience_score}
+                          />
+                          <ScoreRow
+                            label="Skills"
+                            score={latestAnalysis.skills_score}
+                          />
+                          <ScoreRow
+                            label="Contact"
+                            score={latestAnalysis.contact_score}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Card>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TIMELINE */}
+        {view === "timeline" && (
+          <div className="grid lg:grid-cols-[1fr_340px] gap-6 items-start">
+            <div className="space-y-5">
+              <PageHeading
+                eyebrow="WORK DISCOVERY"
+                title="The Timeline."
+                text="A feed built around work, ability, opportunity and local discovery."
+              />
+
+              <Card>
+                <div className="flex gap-3">
+                  <div className="h-11 w-11 shrink-0 rounded-xl bg-slate-100 flex items-center justify-center">
+                    ◎
+                  </div>
+
+                  <button
+                    onClick={() => setShowPostComposer(true)}
+                    className="flex-1 text-left rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-400 hover:bg-slate-100"
                   >
-                    <input
-                      placeholder="Full name"
-                      value={personForm.name}
-                      onChange={(e) =>
-                        setPersonForm({
-                          ...personForm,
-                          name: e.target.value,
-                        })
-                      }
-                      className="input"
-                      required
-                    />
+                    Share something about your work...
+                  </button>
+                </div>
+              </Card>
 
-                    <input
-                      placeholder="Job title / role"
-                      value={personForm.job_title}
-                      onChange={(e) =>
-                        setPersonForm({
-                          ...personForm,
-                          job_title: e.target.value,
-                        })
-                      }
-                      className="input"
-                      required
-                    />
-
-                    <input
-                      placeholder="Town"
-                      value={personForm.town}
-                      onChange={(e) =>
-                        setPersonForm({
-                          ...personForm,
-                          town: e.target.value,
-                        })
-                      }
-                      className="input"
-                    />
-
-                    <select
-                      value={personForm.province}
-                      onChange={(e) =>
-                        setPersonForm({
-                          ...personForm,
-                          province: e.target.value,
-                        })
-                      }
-                      className="input"
-                      required
-                    >
-                      <option value="">Select province</option>
-                      {provinces.map((province) => (
-                        <option key={province}>{province}</option>
-                      ))}
-                    </select>
-
-                    <input
-                      placeholder="Phone"
-                      value={personForm.phone}
-                      onChange={(e) =>
-                        setPersonForm({
-                          ...personForm,
-                          phone: e.target.value,
-                        })
-                      }
-                      className="input"
-                    />
-
-                    <select
-                      value={personForm.availability}
-                      onChange={(e) =>
-                        setPersonForm({
-                          ...personForm,
-                          availability: e.target.value,
-                        })
-                      }
-                      className="input"
-                    >
-                      <option>Available</option>
-                      <option>Open to opportunities</option>
-                      <option>Currently working</option>
-                      <option>Unavailable</option>
-                    </select>
-
-                    <textarea
-                      placeholder="Skills — e.g. welding, cashier, plumbing, driving..."
-                      value={personForm.skills}
-                      onChange={(e) =>
-                        setPersonForm({
-                          ...personForm,
-                          skills: e.target.value,
-                        })
-                      }
-                      className="input min-h-28 sm:col-span-2"
-                    />
-
-                    <textarea
-                      placeholder="Experience"
-                      value={personForm.experience}
-                      onChange={(e) =>
-                        setPersonForm({
-                          ...personForm,
-                          experience: e.target.value,
-                        })
-                      }
-                      className="input min-h-28 sm:col-span-2"
+              {showPostComposer && (
+                <Card>
+                  <div className="flex items-center justify-between">
+                    <SectionTitle
+                      title="Create a work post"
+                      subtitle="Give people a reason to discover what you can do."
                     />
 
                     <button
-                      type="submit"
-                      className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white sm:col-span-2"
+                      onClick={() => setShowPostComposer(false)}
+                      className="text-slate-400 hover:text-slate-900"
                     >
-                      Create Work Identity
+                      ✕
                     </button>
-                  </form>
-                </AppCard>
-
-                <AppCard className="p-6">
-                  <div className="text-xs font-black uppercase tracking-widest text-indigo-600">
-                    Your network
-                  </div>
-                  <div className="mt-5 grid grid-cols-2 gap-3">
-                    <div className="rounded-2xl bg-slate-50 p-5">
-                      <div className="text-3xl font-black">{people.length}</div>
-                      <div className="mt-1 text-xs font-semibold text-slate-500">
-                        People discoverable
-                      </div>
-                    </div>
-                    <div className="rounded-2xl bg-slate-50 p-5">
-                      <div className="text-3xl font-black">{jobs.length}</div>
-                      <div className="mt-1 text-xs font-semibold text-slate-500">
-                        Opportunities
-                      </div>
-                    </div>
                   </div>
 
-                  <div className="mt-6 rounded-3xl bg-indigo-50 p-5">
-                    <div className="font-black">Why Work Identity?</div>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">
-                      A CV tells a story. A Work Identity creates a searchable
-                      signal around your ability.
-                    </p>
+                  <textarea
+                    value={newPost}
+                    onChange={(e) => setNewPost(e.target.value)}
+                    placeholder="Tell the work community what you're doing, what you can do, or what opportunity you're looking for..."
+                    className="w-full min-h-32 rounded-2xl border border-slate-200 p-4 outline-none focus:ring-2 focus:ring-sky-200 resize-none"
+                  />
+
+                  <div className="grid sm:grid-cols-2 gap-3 mt-4">
+                    <Select
+                      label="Post type"
+                      value={newPostType}
+                      onChange={setNewPostType}
+                      options={[
+                        "general",
+                        "availability",
+                        "work_showcase",
+                        "experience",
+                        "opportunity",
+                      ]}
+                    />
+
+                    <Input
+                      label="Location"
+                      placeholder="e.g. Secunda, Mpumalanga"
+                      value={newPostLocation}
+                      onChange={setNewPostLocation}
+                    />
                   </div>
-                </AppCard>
-              </div>
-            </div>
-          )}
 
-          {/* CV INTELLIGENCE */}
-          {view === "cv" && (
-            <div className="space-y-7">
-              <section className="rounded-[2rem] bg-gradient-to-br from-indigo-700 to-slate-950 p-7 text-white sm:p-9">
-                <div className="max-w-3xl">
-                  <div className="text-xs font-black uppercase tracking-[0.2em] text-indigo-200">
-                    V5.3 • CV Intelligence
+                  <button
+                    onClick={createPost}
+                    className="mt-5 px-6 py-3 rounded-xl bg-[#07111f] text-white font-bold"
+                  >
+                    Publish to Timeline
+                  </button>
+                </Card>
+              )}
+
+              {timelineLoading ? (
+                <Card>
+                  <div className="text-sm text-slate-500">
+                    Loading the work community...
                   </div>
-
-                  <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
-                    Make your CV discoverable.
-                  </h1>
-
-                  <p className="mt-4 max-w-2xl leading-7 text-indigo-100">
-                    GUARDIAN WORK is building a CV intelligence layer that
-                    helps you understand what is strong, what is missing and
-                    what can be improved before your CV goes to an employer.
-                  </p>
-
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleCVInput}
-                    className="hidden"
+                </Card>
+              ) : posts.length === 0 ? (
+                <Card>
+                  <EmptyState
+                    title="The Timeline is ready."
+                    text="Be one of the first people to make their ability discoverable."
                   />
 
                   <button
-                    onClick={openCVPicker}
-                    disabled={uploading}
-                    className="mt-7 rounded-2xl bg-white px-6 py-3 text-sm font-black text-slate-950 disabled:opacity-50"
+                    onClick={() => setShowPostComposer(true)}
+                    className="mt-5 px-5 py-3 rounded-xl bg-[#07111f] text-white font-bold"
                   >
-                    {uploading ? "Uploading CV…" : "Upload My CV →"}
+                    Create the first post
                   </button>
-
-                  <p className="mt-3 text-xs text-indigo-200">
-                    PDF, DOC or DOCX • Maximum 10 MB
-                  </p>
-                </div>
-              </section>
-
-              {latestCV ? (
-                <div className="grid gap-6 xl:grid-cols-[.9fr_1.1fr]">
-                  <AppCard className="p-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="text-xs font-black uppercase tracking-widest text-indigo-600">
-                          Latest CV
-                        </div>
-                        <h3 className="mt-2 break-all text-lg font-black">
-                          {latestCV.file_name}
-                        </h3>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {formatBytes(latestCV.file_size)}
-                        </p>
-                      </div>
-
-                      <div className="rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">
-                        {latestCV.status || "uploaded"}
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => loadCVAnalysis(latestCV)}
-                      className="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white"
-                    >
-                      Analyse CV →
-                    </button>
-                  </AppCard>
-
-                  <AppCard className="p-6">
-                    <SectionTitle
-                      eyebrow="Readiness"
-                      title="Your CV intelligence journey"
-                    />
-
-                    <div className="space-y-3">
-                      {[
-                        ["✓", "CV received", true],
-                        ["2", "Content extraction", false],
-                        ["3", "ATS analysis", false],
-                        ["4", "Improvement recommendations", false],
-                        ["5", "Approve final CV", false],
-                      ].map(([number, label, complete]) => (
-                        <div
-                          key={String(label)}
-                          className="flex items-center gap-4 rounded-2xl bg-slate-50 p-4"
-                        >
-                          <div
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-black ${
-                              complete
-                                ? "bg-emerald-600 text-white"
-                                : "bg-white text-slate-500"
-                            }`}
-                          >
-                            {number}
-                          </div>
-                          <span className="text-sm font-bold">{label}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </AppCard>
-                </div>
+                </Card>
               ) : (
-                <AppCard className="p-8 text-center">
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-indigo-50 text-2xl">
-                    📄
-                  </div>
-                  <h3 className="mt-5 text-xl font-black">
-                    No CV uploaded yet
-                  </h3>
-                  <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">
-                    Upload your CV to start the GUARDIAN WORK CV Intelligence
-                    journey.
-                  </p>
-                </AppCard>
-              )}
+                posts.map((post) => (
+                  <TimelinePost
+                    key={post.id}
+                    post={post}
+                    people={people}
+                    businesses={businesses}
+                    opportunities={opportunities}
+                    comments={comments[post.id] || []}
+                    liked={!!likedPosts[post.id]}
+                    commentValue={commentInputs[post.id] || ""}
+                    setCommentValue={(value) =>
+                      setCommentInputs((prev) => ({
+                        ...prev,
+                        [post.id]: value,
+                      }))
+                    }
+                    onLike={() => toggleLike(post)}
+                    onComment={() => addComment(post)}
+                    onShare={() => sharePost(post)}
+                    onApply={() => {
+                      const opportunity = opportunities.find(
+                        (item) => item.id === post.opportunity_id
+                      );
 
-              {selectedCV && analysis && (
-                <AppCard className="p-6 sm:p-8">
-                  <div className="flex flex-col gap-8 lg:flex-row lg:items-center">
-                    <ScoreRing score={analysis.overall_score || 0} />
-
-                    <div className="flex-1">
-                      <div className="text-xs font-black uppercase tracking-widest text-indigo-600">
-                        Preliminary readiness
-                      </div>
-                      <h2 className="mt-2 text-3xl font-black">
-                        CV Readiness Score
-                      </h2>
-                      <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
-                        This first score is a file-level readiness indicator.
-                        The full content ATS engine will analyse the actual CV
-                        text in the next intelligence layer.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-8 grid gap-5 md:grid-cols-2">
-                    <ScoreBar
-                      label="Structure"
-                      score={analysis.structure_score || 0}
-                    />
-                    <ScoreBar
-                      label="Experience"
-                      score={analysis.experience_score || 0}
-                    />
-                    <ScoreBar
-                      label="Skills"
-                      score={analysis.skills_score || 0}
-                    />
-                    <ScoreBar
-                      label="Contact"
-                      score={analysis.contact_score || 0}
-                    />
-                    <ScoreBar
-                      label="Keywords"
-                      score={analysis.keywords_score || 0}
-                    />
-                    <ScoreBar
-                      label="Readability"
-                      score={analysis.readability_score || 0}
-                    />
-                  </div>
-
-                  <div className="mt-8 grid gap-5 md:grid-cols-3">
-                    <div className="rounded-3xl bg-emerald-50 p-5">
-                      <div className="font-black text-emerald-800">
-                        Strengths
-                      </div>
-                      <p className="mt-3 text-sm leading-6 text-emerald-700">
-                        {analysis.strengths}
-                      </p>
-                    </div>
-
-                    <div className="rounded-3xl bg-amber-50 p-5">
-                      <div className="font-black text-amber-800">
-                        Opportunities
-                      </div>
-                      <p className="mt-3 text-sm leading-6 text-amber-700">
-                        {analysis.weaknesses}
-                      </p>
-                    </div>
-
-                    <div className="rounded-3xl bg-indigo-50 p-5">
-                      <div className="font-black text-indigo-800">
-                        Recommendations
-                      </div>
-                      <p className="mt-3 text-sm leading-6 text-indigo-700">
-                        {analysis.recommendations}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-xs leading-5 text-slate-500">
-                    <strong>V5.3 engine status:</strong> secure file upload and
-                    CV record creation are active. Actual PDF/DOC/DOCX content
-                    extraction and AI/ATS interpretation will be connected as
-                    the next processing layer.
-                  </div>
-                </AppCard>
-              )}
-
-              {cvDocuments.length > 0 && (
-                <AppCard className="p-6">
-                  <SectionTitle
-                    eyebrow="CV history"
-                    title="Your uploaded CVs"
+                      if (opportunity?.application_email) {
+                        window.location.href = `mailto:${opportunity.application_email}?subject=${encodeURIComponent(
+                          opportunity.title || "Job Application"
+                        )}`;
+                      } else {
+                        goTo("jobs");
+                      }
+                    }}
                   />
-
-                  <div className="space-y-3">
-                    {cvDocuments.map((cv) => (
-                      <button
-                        key={cv.id}
-                        onClick={() => loadCVAnalysis(cv)}
-                        className="flex w-full items-center justify-between gap-4 rounded-2xl bg-slate-50 p-4 text-left hover:bg-slate-100"
-                      >
-                        <div>
-                          <div className="font-bold">{cv.file_name}</div>
-                          <div className="mt-1 text-xs text-slate-500">
-                            {formatBytes(cv.file_size)}
-                          </div>
-                        </div>
-                        <span className="text-xs font-black text-indigo-600">
-                          View →
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </AppCard>
+                ))
               )}
             </div>
-          )}
 
-          {/* TALENT */}
-          {view === "talent" && (
-            <div className="space-y-7">
-              <SectionTitle
-                eyebrow="Discover people"
-                title="Talent Pool"
-                text="Search by ability, province and town."
-              />
-
-              <AppCard className="p-5">
-                <div className="grid gap-3 md:grid-cols-[1fr_220px_220px]">
-                  <input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search skills, names, roles..."
-                    className="input"
-                  />
-
-                  <select
-                    value={provinceFilter}
-                    onChange={(e) => setProvinceFilter(e.target.value)}
-                    className="input"
-                  >
-                    <option value="">All provinces</option>
-                    {provinces.map((province) => (
-                      <option key={province}>{province}</option>
-                    ))}
-                  </select>
-
-                  <input
-                    value={townFilter}
-                    onChange={(e) => setTownFilter(e.target.value)}
-                    placeholder="Town"
-                    className="input"
-                  />
-                </div>
-              </AppCard>
-
-              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                {filteredPeople.map((person, index) => (
-                  <AppCard key={person.id || index} className="p-6">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="text-xl font-black">
-                          {person.name || "Unnamed"}
-                        </h3>
-                        <p className="mt-1 text-sm font-bold text-indigo-600">
-                          {person.job_title || "Role not specified"}
-                        </p>
-                      </div>
-
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase text-slate-500">
-                        {person.verification_status || "unverified"}
-                      </span>
-                    </div>
-
-                    <div className="mt-5 space-y-2 text-sm text-slate-500">
-                      <div>📍 {person.town || "Town not specified"}</div>
-                      <div>🌍 {person.province || "Province not specified"}</div>
-                      <div>🧰 {person.skills || "Skills not listed"}</div>
-                      <div>💼 {person.experience || "Experience not listed"}</div>
-                    </div>
-
-                    <button
-                      onClick={() => contactPerson(person)}
-                      className="mt-6 w-full rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white"
-                    >
-                      Contact via WhatsApp
-                    </button>
-                  </AppCard>
-                ))}
-              </div>
-
-              {!loading && filteredPeople.length === 0 && (
-                <AppCard className="p-10 text-center">
-                  <h3 className="text-xl font-black">No talent found</h3>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Try another province, town or search term.
-                  </p>
-                </AppCard>
-              )}
-            </div>
-          )}
-
-          {/* JOBS */}
-          {view === "jobs" && (
-            <div className="space-y-7">
-              <SectionTitle
-                eyebrow="Find opportunity"
-                title="Opportunities"
-                text="Real opportunities connected to businesses and communities."
-              />
-
-              <AppCard className="p-5">
-                <div className="grid gap-3 md:grid-cols-2">
-                  <input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search opportunities..."
-                    className="input"
-                  />
-
-                  <select
-                    value={provinceFilter}
-                    onChange={(e) => setProvinceFilter(e.target.value)}
-                    className="input"
-                  >
-                    <option value="">All provinces</option>
-                    {provinces.map((province) => (
-                      <option key={province}>{province}</option>
-                    ))}
-                  </select>
-                </div>
-              </AppCard>
-
-              <div className="grid gap-5 md:grid-cols-2">
-                {filteredJobs.map((job, index) => (
-                  <AppCard key={job.id || index} className="p-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="text-xs font-black uppercase tracking-widest text-indigo-600">
-                          {job.employment_type || "Opportunity"}
-                        </div>
-                        <h3 className="mt-2 text-xl font-black">
-                          {job.title}
-                        </h3>
-                      </div>
-
-                      <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase text-emerald-700">
-                        {job.status || "open"}
-                      </span>
-                    </div>
-
-                    <p className="mt-4 text-sm leading-6 text-slate-500">
-                      {job.description || "No description provided."}
-                    </p>
-
-                    <div className="mt-5 grid gap-2 text-sm text-slate-500">
-                      <div>
-                        📍 {job.town || "Town"} •{" "}
-                        {job.province || "Province"}
-                      </div>
-                      <div>
-                        🧰 {job.skills_required || "Skills not specified"}
-                      </div>
-                      <div>
-                        💼{" "}
-                        {job.experience_required ||
-                          "Experience not specified"}
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => applyViaEmail(job)}
-                      className="mt-6 w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white"
-                    >
-                      Apply via Email →
-                    </button>
-                  </AppCard>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* BUSINESS */}
-          {view === "business" && (
-            <div className="space-y-7">
-              <SectionTitle
-                eyebrow="Business"
-                title="Connect your business to local ability."
-                text="Create a discoverable business profile and publish opportunities."
-              />
-
-              <div className="grid gap-6 xl:grid-cols-2">
-                <AppCard className="p-6">
-                  <h3 className="text-xl font-black">Business Profile</h3>
-
-                  <form
-                    onSubmit={createBusiness}
-                    className="mt-6 space-y-4"
-                  >
-                    <input
-                      placeholder="Business name"
-                      value={businessForm.business_name}
-                      onChange={(e) =>
-                        setBusinessForm({
-                          ...businessForm,
-                          business_name: e.target.value,
-                        })
-                      }
-                      className="input"
-                      required
-                    />
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <input
-                        placeholder="Email"
-                        value={businessForm.email}
-                        onChange={(e) =>
-                          setBusinessForm({
-                            ...businessForm,
-                            email: e.target.value,
-                          })
-                        }
-                        className="input"
-                      />
-
-                      <input
-                        placeholder="Phone"
-                        value={businessForm.phone}
-                        onChange={(e) =>
-                          setBusinessForm({
-                            ...businessForm,
-                            phone: e.target.value,
-                          })
-                        }
-                        className="input"
-                      />
-
-                      <input
-                        placeholder="Town"
-                        value={businessForm.town}
-                        onChange={(e) =>
-                          setBusinessForm({
-                            ...businessForm,
-                            town: e.target.value,
-                          })
-                        }
-                        className="input"
-                      />
-
-                      <select
-                        value={businessForm.province}
-                        onChange={(e) =>
-                          setBusinessForm({
-                            ...businessForm,
-                            province: e.target.value,
-                          })
-                        }
-                        className="input"
-                        required
-                      >
-                        <option value="">Province</option>
-                        {provinces.map((province) => (
-                          <option key={province}>{province}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <input
-                      placeholder="Industry"
-                      value={businessForm.industry}
-                      onChange={(e) =>
-                        setBusinessForm({
-                          ...businessForm,
-                          industry: e.target.value,
-                        })
-                      }
-                      className="input"
-                    />
-
-                    <textarea
-                      placeholder="Tell people about the business"
-                      value={businessForm.description}
-                      onChange={(e) =>
-                        setBusinessForm({
-                          ...businessForm,
-                          description: e.target.value,
-                        })
-                      }
-                      className="input min-h-28"
-                    />
-
-                    <button
-                      type="submit"
-                      className="w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white"
-                    >
-                      Create Business
-                    </button>
-                  </form>
-                </AppCard>
-
-                <AppCard className="p-6">
-                  <h3 className="text-xl font-black">
-                    Publish Opportunity
-                  </h3>
-
-                  <form
-                    onSubmit={createOpportunity}
-                    className="mt-6 space-y-4"
-                  >
-                    <input
-                      placeholder="Opportunity title"
-                      value={jobForm.title}
-                      onChange={(e) =>
-                        setJobForm({
-                          ...jobForm,
-                          title: e.target.value,
-                        })
-                      }
-                      className="input"
-                      required
-                    />
-
-                    <textarea
-                      placeholder="Description"
-                      value={jobForm.description}
-                      onChange={(e) =>
-                        setJobForm({
-                          ...jobForm,
-                          description: e.target.value,
-                        })
-                      }
-                      className="input min-h-24"
-                    />
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <input
-                        placeholder="Town"
-                        value={jobForm.town}
-                        onChange={(e) =>
-                          setJobForm({
-                            ...jobForm,
-                            town: e.target.value,
-                          })
-                        }
-                        className="input"
-                      />
-
-                      <select
-                        value={jobForm.province}
-                        onChange={(e) =>
-                          setJobForm({
-                            ...jobForm,
-                            province: e.target.value,
-                          })
-                        }
-                        className="input"
-                        required
-                      >
-                        <option value="">Province</option>
-                        {provinces.map((province) => (
-                          <option key={province}>{province}</option>
-                        ))}
-                      </select>
-
-                      <select
-                        value={jobForm.employment_type}
-                        onChange={(e) =>
-                          setJobForm({
-                            ...jobForm,
-                            employment_type: e.target.value,
-                          })
-                        }
-                        className="input"
-                      >
-                        <option>Full-time</option>
-                        <option>Part-time</option>
-                        <option>Contract</option>
-                        <option>Temporary</option>
-                        <option>Internship</option>
-                        <option>Learnership</option>
-                      </select>
-
-                      <input
-                        placeholder="Experience required"
-                        value={jobForm.experience_required}
-                        onChange={(e) =>
-                          setJobForm({
-                            ...jobForm,
-                            experience_required: e.target.value,
-                          })
-                        }
-                        className="input"
-                      />
-                    </div>
-
-                    <input
-                      placeholder="Skills required"
-                      value={jobForm.skills_required}
-                      onChange={(e) =>
-                        setJobForm({
-                          ...jobForm,
-                          skills_required: e.target.value,
-                        })
-                      }
-                      className="input"
-                    />
-
-                    <input
-                      type="email"
-                      placeholder="Application email"
-                      value={jobForm.application_email}
-                      onChange={(e) =>
-                        setJobForm({
-                          ...jobForm,
-                          application_email: e.target.value,
-                        })
-                      }
-                      className="input"
-                      required
-                    />
-
-                    <input
-                      type="date"
-                      value={jobForm.closing_date}
-                      onChange={(e) =>
-                        setJobForm({
-                          ...jobForm,
-                          closing_date: e.target.value,
-                        })
-                      }
-                      className="input"
-                    />
-
-                    <button
-                      type="submit"
-                      className="w-full rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-black text-white"
-                    >
-                      Publish Opportunity
-                    </button>
-                  </form>
-                </AppCard>
-              </div>
-            </div>
-          )}
-
-          {/* OPERATIONS */}
-          {view === "operations" && (
-            <div className="space-y-7">
-              <SectionTitle
-                eyebrow="System intelligence"
-                title="Operations"
-                text="Real database-backed platform visibility."
-              />
-
-              <div className="grid gap-4 sm:grid-cols-3">
-                <AppCard className="p-6">
-                  <div className="text-4xl font-black">{people.length}</div>
-                  <div className="mt-2 text-sm font-bold text-slate-500">
-                    People
-                  </div>
-                </AppCard>
-
-                <AppCard className="p-6">
-                  <div className="text-4xl font-black">{jobs.length}</div>
-                  <div className="mt-2 text-sm font-bold text-slate-500">
-                    Opportunities
-                  </div>
-                </AppCard>
-
-                <AppCard className="p-6">
-                  <div className="text-4xl font-black">
-                    {businesses.length}
-                  </div>
-                  <div className="mt-2 text-sm font-bold text-slate-500">
-                    Businesses
-                  </div>
-                </AppCard>
-              </div>
-
-              <AppCard className="p-6">
+            <aside className="space-y-5 lg:sticky lg:top-24">
+              <Card>
                 <SectionTitle
-                  eyebrow="Geography"
-                  title="Talent by province"
+                  title="Your discoverability"
+                  subtitle="Build signals that help businesses find you."
+                />
+
+                <div className="mt-5">
+                  <div className="flex items-end justify-between">
+                    <span className="text-sm text-slate-500">
+                      Profile completion
+                    </span>
+                    <strong>
+                      {currentPerson?.profile_completion || 0}%
+                    </strong>
+                  </div>
+
+                  <div className="h-2 rounded-full bg-slate-100 mt-2 overflow-hidden">
+                    <div
+                      className="h-full bg-sky-500"
+                      style={{
+                        width: `${currentPerson?.profile_completion || 0}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => goTo("work")}
+                  className="mt-5 w-full px-4 py-3 rounded-xl bg-[#07111f] text-white font-bold text-sm"
+                >
+                  Improve Work Identity
+                </button>
+              </Card>
+
+              <Card>
+                <SectionTitle
+                  title="Live opportunities"
+                  subtitle="Work appearing across the network."
+                />
+
+                <div className="mt-4 space-y-3">
+                  {opportunities.slice(0, 4).map((job) => (
+                    <button
+                      key={job.id}
+                      onClick={() => goTo("jobs")}
+                      className="w-full text-left p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition"
+                    >
+                      <div className="font-bold text-sm">
+                        {job.title}
+                      </div>
+
+                      <div className="text-xs text-slate-500 mt-1">
+                        {[job.town, job.province]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </div>
+                    </button>
+                  ))}
+
+                  {opportunities.length === 0 && (
+                    <div className="text-sm text-slate-400">
+                      No opportunities yet.
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </aside>
+          </div>
+        )}
+
+        {/* TALENT */}
+        {view === "talent" && (
+          <div className="space-y-6">
+            <PageHeading
+              eyebrow="TALENT DISCOVERY"
+              title="Find ability. Not just CVs."
+              text="Search people by work identity, skills and location."
+            />
+
+            <Card>
+              <div className="grid md:grid-cols-4 gap-3">
+                <Input
+                  label="Search"
+                  placeholder="Name, role, skill..."
+                  value={searchPeople}
+                  onChange={setSearchPeople}
+                />
+
+                <Select
+                  label="Province"
+                  value={provinceFilter}
+                  onChange={setProvinceFilter}
+                  options={provinces}
+                />
+
+                <Input
+                  label="Town"
+                  placeholder="e.g. Secunda"
+                  value={townFilter}
+                  onChange={setTownFilter}
+                />
+
+                <Input
+                  label="Skill"
+                  placeholder="e.g. IT"
+                  value={skillFilter}
+                  onChange={setSkillFilter}
+                />
+              </div>
+            </Card>
+
+            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+              {filteredPeople.map((person, index) => (
+                <Card key={person.id || index}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center text-2xl">
+                      ◎
+                    </div>
+
+                    <span className="text-[10px] uppercase tracking-wider rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-1 font-bold">
+                      Discoverable
+                    </span>
+                  </div>
+
+                  <h3 className="mt-5 font-black text-lg">
+                    {person.name}
+                  </h3>
+
+                  <p className="text-sky-700 font-semibold text-sm mt-1">
+                    {person.job_title || "Work Identity"}
+                  </p>
+
+                  <p className="text-xs text-slate-500 mt-2">
+                    {[person.town, person.province]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </p>
+
+                  {person.headline && (
+                    <p className="text-sm text-slate-600 mt-4 leading-6">
+                      {person.headline}
+                    </p>
+                  )}
+
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    {normalizeSkills(person.skills)
+                      .slice(0, 5)
+                      .map((skill) => (
+                        <span
+                          key={skill}
+                          className="px-2.5 py-1 rounded-full bg-slate-100 text-xs font-medium"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                  </div>
+
+                  <div className="flex gap-2 mt-5">
+                    {person.phone && (
+                      <a
+                        href={`https://wa.me/${person.phone.replace(
+                          /\D/g,
+                          ""
+                        )}`}
+                        className="flex-1 text-center px-3 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold"
+                      >
+                        WhatsApp
+                      </a>
+                    )}
+
+                    {person.email && (
+                      <a
+                        href={`mailto:${person.email}`}
+                        className="flex-1 text-center px-3 py-2.5 rounded-xl bg-[#07111f] text-white text-sm font-bold"
+                      >
+                        Email
+                      </a>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+
+            {filteredPeople.length === 0 && (
+              <Card>
+                <EmptyState
+                  title="No matching people"
+                  text="Try a different location, skill or search."
+                />
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* JOBS */}
+        {view === "jobs" && (
+          <div className="space-y-6">
+            <PageHeading
+              eyebrow="OPPORTUNITIES"
+              title="Find your next opening."
+              text="Opportunities are connected to real businesses and local work."
+            />
+
+            <Card>
+              <div className="grid md:grid-cols-2 gap-3">
+                <Input
+                  label="Search opportunities"
+                  placeholder="Role, skill, town..."
+                  value={searchJobs}
+                  onChange={setSearchJobs}
+                />
+
+                <Select
+                  label="Province"
+                  value={jobProvinceFilter}
+                  onChange={setJobProvinceFilter}
+                  options={provinces}
+                />
+              </div>
+            </Card>
+
+            <div className="grid lg:grid-cols-2 gap-5">
+              {filteredJobs.map((job) => (
+                <Card key={job.id}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <span className="text-[10px] uppercase tracking-wider text-sky-700 font-black">
+                        Opportunity
+                      </span>
+
+                      <h3 className="text-xl font-black mt-1">
+                        {job.title}
+                      </h3>
+
+                      <p className="text-sm text-slate-500 mt-1">
+                        {[job.town, job.province]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </p>
+                    </div>
+
+                    <span className="px-2.5 py-1 rounded-full bg-slate-100 text-xs font-bold">
+                      {job.employment_type || "Work"}
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-slate-600 leading-6 mt-5">
+                    {job.description}
+                  </p>
+
+                  {job.skills_required && (
+                    <div className="mt-4">
+                      <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        Skills
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {normalizeSkills(job.skills_required).map(
+                          (skill) => (
+                            <span
+                              key={skill}
+                              className="px-2.5 py-1 rounded-full bg-slate-100 text-xs"
+                            >
+                              {skill}
+                            </span>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-2 mt-6">
+                    {job.application_email && (
+                      <a
+                        href={`mailto:${job.application_email}?subject=${encodeURIComponent(
+                          job.title || "Job Application"
+                        )}`}
+                        className="px-5 py-3 rounded-xl bg-[#07111f] text-white font-bold text-sm"
+                      >
+                        Apply
+                      </a>
+                    )}
+
+                    <button
+                      onClick={() => createOpportunityPost(job)}
+                      className="px-5 py-3 rounded-xl bg-slate-100 font-bold text-sm"
+                    >
+                      Share to Timeline
+                    </button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+
+            {filteredJobs.length === 0 && (
+              <Card>
+                <EmptyState
+                  title="No opportunities found"
+                  text="Businesses can publish opportunities here as the network grows."
+                />
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* BUSINESS */}
+        {view === "business" && (
+          <div className="space-y-6">
+            <PageHeading
+              eyebrow="BUSINESS"
+              title="Find people who can actually help."
+              text="Build your business presence and publish local opportunities."
+            />
+
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Card>
+                <SectionTitle
+                  title="Business profile"
+                  subtitle="Create a discoverable business identity."
                 />
 
                 <div className="space-y-4">
-                  {provinceStats.map((item) => {
-                    const percentage =
-                      people.length > 0
-                        ? Math.round((item.count / people.length) * 100)
-                        : 0;
+                  <Input
+                    label="Business name"
+                    value={businessForm.name}
+                    onChange={(value) =>
+                      setBusinessForm({
+                        ...businessForm,
+                        name: value,
+                      })
+                    }
+                  />
 
-                    return (
-                      <div key={item.province}>
-                        <div className="mb-2 flex justify-between text-sm">
-                          <span className="font-bold">
-                            {item.province}
-                          </span>
-                          <span className="font-black">
-                            {item.count}
-                          </span>
-                        </div>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <Select
+                      label="Province"
+                      value={businessForm.province}
+                      onChange={(value) =>
+                        setBusinessForm({
+                          ...businessForm,
+                          province: value,
+                        })
+                      }
+                      options={provinces}
+                    />
 
-                        <div className="h-2 rounded-full bg-slate-100">
-                          <div
-                            className="h-full rounded-full bg-indigo-600"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </AppCard>
-
-              <AppCard className="p-6">
-                <div className="text-xs font-black uppercase tracking-widest text-amber-600">
-                  Coming intelligence
-                </div>
-                <h3 className="mt-2 text-xl font-black">
-                  Matching • Applications • Placements • Timeline • Ads
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  These will be connected to real database workflows in the
-                  next versions rather than simulated with fake numbers.
-                </p>
-              </AppCard>
-            </div>
-          )}
-
-          {/* SETTINGS */}
-          {view === "settings" && (
-            <div className="space-y-7">
-              <SectionTitle
-                eyebrow="Control"
-                title="Settings"
-                text="Your GUARDIAN WORK preferences and privacy controls."
-              />
-
-              {[
-                [
-                  "Notifications",
-                  "Control opportunity and platform notifications.",
-                ],
-                [
-                  "Privacy & visibility",
-                  "Control what businesses can discover.",
-                ],
-                [
-                  "CV privacy",
-                  "CV access will use controlled employer permissions.",
-                ],
-                [
-                  "Theme",
-                  "Personalized themes will be introduced in a future release.",
-                ],
-              ].map(([title, text]) => (
-                <AppCard
-                  key={title}
-                  className="flex items-center justify-between gap-5 p-6"
-                >
-                  <div>
-                    <h3 className="font-black">{title}</h3>
-                    <p className="mt-1 text-sm text-slate-500">{text}</p>
+                    <Input
+                      label="Town"
+                      value={businessForm.town}
+                      onChange={(value) =>
+                        setBusinessForm({
+                          ...businessForm,
+                          town: value,
+                        })
+                      }
+                    />
                   </div>
 
-                  <span className="rounded-full bg-slate-100 px-3 py-2 text-[10px] font-black uppercase text-slate-500">
-                    V5.3+
-                  </span>
-                </AppCard>
-              ))}
+                  <Textarea
+                    label="Description"
+                    value={businessForm.description}
+                    onChange={(value) =>
+                      setBusinessForm({
+                        ...businessForm,
+                        description: value,
+                      })
+                    }
+                  />
+
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <Input
+                      label="Phone"
+                      value={businessForm.phone}
+                      onChange={(value) =>
+                        setBusinessForm({
+                          ...businessForm,
+                          phone: value,
+                        })
+                      }
+                    />
+
+                    <Input
+                      label="Email"
+                      value={businessForm.email}
+                      onChange={(value) =>
+                        setBusinessForm({
+                          ...businessForm,
+                          email: value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <button
+                    onClick={createBusiness}
+                    className="px-6 py-3 rounded-xl bg-[#07111f] text-white font-bold"
+                  >
+                    Create Business
+                  </button>
+                </div>
+              </Card>
+
+              <Card>
+                <SectionTitle
+                  title="Publish an opportunity"
+                  subtitle="Put real work into the discovery network."
+                />
+
+                <div className="space-y-4">
+                  <Input
+                    label="Opportunity title"
+                    value={opportunityForm.title}
+                    onChange={(value) =>
+                      setOpportunityForm({
+                        ...opportunityForm,
+                        title: value,
+                      })
+                    }
+                  />
+
+                  <Textarea
+                    label="Description"
+                    value={opportunityForm.description}
+                    onChange={(value) =>
+                      setOpportunityForm({
+                        ...opportunityForm,
+                        description: value,
+                      })
+                    }
+                  />
+
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <Select
+                      label="Province"
+                      value={opportunityForm.province}
+                      onChange={(value) =>
+                        setOpportunityForm({
+                          ...opportunityForm,
+                          province: value,
+                        })
+                      }
+                      options={provinces}
+                    />
+
+                    <Input
+                      label="Town"
+                      value={opportunityForm.town}
+                      onChange={(value) =>
+                        setOpportunityForm({
+                          ...opportunityForm,
+                          town: value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <Select
+                    label="Employment type"
+                    value={opportunityForm.employment_type}
+                    onChange={(value) =>
+                      setOpportunityForm({
+                        ...opportunityForm,
+                        employment_type: value,
+                      })
+                    }
+                    options={employmentTypes}
+                  />
+
+                  <Input
+                    label="Experience required"
+                    value={opportunityForm.experience_required}
+                    onChange={(value) =>
+                      setOpportunityForm({
+                        ...opportunityForm,
+                        experience_required: value,
+                      })
+                    }
+                  />
+
+                  <Input
+                    label="Skills required"
+                    placeholder="Separate skills with commas"
+                    value={opportunityForm.skills_required}
+                    onChange={(value) =>
+                      setOpportunityForm({
+                        ...opportunityForm,
+                        skills_required: value,
+                      })
+                    }
+                  />
+
+                  <Input
+                    label="Application email"
+                    value={opportunityForm.application_email}
+                    onChange={(value) =>
+                      setOpportunityForm({
+                        ...opportunityForm,
+                        application_email: value,
+                      })
+                    }
+                  />
+
+                  <Input
+                    label="Closing date"
+                    type="date"
+                    value={opportunityForm.closing_date}
+                    onChange={(value) =>
+                      setOpportunityForm({
+                        ...opportunityForm,
+                        closing_date: value,
+                      })
+                    }
+                  />
+
+                  <Select
+                    label="Business"
+                    value={opportunityForm.business_id}
+                    onChange={(value) =>
+                      setOpportunityForm({
+                        ...opportunityForm,
+                        business_id: value,
+                      })
+                    }
+                    options={businesses.map(
+                      (business) =>
+                        business.id || business.name || "Business"
+                    )}
+                  />
+
+                  <button
+                    onClick={createOpportunity}
+                    className="px-6 py-3 rounded-xl bg-sky-600 text-white font-bold"
+                  >
+                    Publish Opportunity
+                  </button>
+                </div>
+              </Card>
             </div>
-          )}
-        </main>
+
+            <Card>
+              <SectionTitle
+                title="Businesses on GUARDIAN WORK"
+                subtitle={`${businesses.length} business profile(s) currently available.`}
+              />
+
+              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4 mt-5">
+                {businesses.map((business, index) => (
+                  <div
+                    key={business.id || index}
+                    className="rounded-2xl border border-slate-200 p-4"
+                  >
+                    <div className="h-11 w-11 rounded-xl bg-slate-100 flex items-center justify-center">
+                      ▤
+                    </div>
+
+                    <h3 className="font-black mt-4">
+                      {business.name ||
+                        business.company_name ||
+                        "Business"}
+                    </h3>
+
+                    <p className="text-xs text-slate-500 mt-1">
+                      {[business.town, business.province]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </p>
+
+                    <p className="text-sm text-slate-600 mt-3 leading-6">
+                      {business.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* OPERATIONS */}
+        {view === "operations" && (
+          <div className="space-y-6">
+            <PageHeading
+              eyebrow="OPERATIONS"
+              title="GUARDIAN WORK intelligence."
+              text="Real database signals from the platform."
+            />
+
+            <div className="grid md:grid-cols-4 gap-4">
+              <MetricCard
+                number={people.length}
+                label="People"
+                icon="◎"
+              />
+
+              <MetricCard
+                number={businesses.length}
+                label="Businesses"
+                icon="▤"
+              />
+
+              <MetricCard
+                number={opportunities.length}
+                label="Opportunities"
+                icon="▣"
+              />
+
+              <MetricCard
+                number={cvDocuments.length}
+                label="CVs uploaded"
+                icon="📄"
+              />
+            </div>
+
+            <Card>
+              <SectionTitle
+                title="Platform direction"
+                subtitle="The next layers should increase real-world discoverability."
+              />
+
+              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4 mt-5">
+                <Roadmap
+                  number="V5.4"
+                  title="Work Discovery Timeline"
+                  status="LIVE"
+                />
+                <Roadmap
+                  number="V5.5"
+                  title="Real Applications"
+                  status="NEXT"
+                />
+                <Roadmap
+                  number="V5.6"
+                  title="Smart Matching"
+                  status="PLANNED"
+                />
+                <Roadmap
+                  number="V5.7"
+                  title="Platform Intelligence"
+                  status="PLANNED"
+                />
+                <Roadmap
+                  number="V5.8"
+                  title="Personalisation"
+                  status="PLANNED"
+                />
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* SETTINGS */}
+        {view === "settings" && (
+          <div className="space-y-6">
+            <PageHeading
+              eyebrow="SETTINGS"
+              title="Your GUARDIAN WORK."
+              text="Privacy, visibility and experience controls."
+            />
+
+            <div className="grid md:grid-cols-2 gap-5">
+              <Card>
+                <SectionTitle
+                  title="Profile visibility"
+                  subtitle="Control how discoverable your Work Identity is."
+                />
+
+                <div className="mt-5 rounded-2xl bg-emerald-50 p-4">
+                  <div className="font-bold text-emerald-800">
+                    Discoverable
+                  </div>
+                  <div className="text-sm text-emerald-700 mt-1">
+                    Your profile can appear in talent discovery.
+                  </div>
+                </div>
+              </Card>
+
+              <Card>
+                <SectionTitle
+                  title="Privacy & security"
+                  subtitle="Sensitive CV and contact information should be protected as the platform scales."
+                />
+
+                <div className="space-y-3 mt-5 text-sm text-slate-600">
+                  <div>🔒 Private CV storage</div>
+                  <div>🛡️ Role-based access planned</div>
+                  <div>👁️ Visibility controls planned</div>
+                  <div>📋 POPIA-aligned privacy controls</div>
+                </div>
+              </Card>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* MOBILE NAV */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 bg-white/95 px-2 py-2 backdrop-blur lg:hidden">
-        <div className="mx-auto flex max-w-xl justify-between">
-          {navItems.slice(0, 6).map(([key, icon, label]) => (
+      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-[#07111f]/97 backdrop-blur-xl border-t border-white/10 text-white">
+        <div className="grid grid-cols-6 max-w-xl mx-auto">
+          {navItems.map((item) => (
             <button
-              key={key}
-              onClick={() => setView(key)}
-              className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-bold ${
-                view === key
-                  ? "bg-slate-950 text-white"
-                  : "text-slate-500"
+              key={item.id}
+              onClick={() => goTo(item.id)}
+              className={`py-3 text-[10px] ${
+                view === item.id
+                  ? "text-sky-300"
+                  : "text-white/45"
               }`}
             >
-              <span className="text-base">{icon}</span>
-              <span className="truncate">{label}</span>
+              <div className="text-lg">{item.icon}</div>
+              <div className="mt-0.5">{item.label}</div>
             </button>
           ))}
         </div>
       </nav>
+    </main>
+  );
+}
 
-      <style jsx global>{`
-        .input {
-          width: 100%;
-          border-radius: 1rem;
-          border: 1px solid rgb(226 232 240);
-          background: white;
-          padding: 0.85rem 1rem;
-          font-size: 0.875rem;
-          outline: none;
-          transition: all 0.15s ease;
-        }
+/* ============================================================
+   COMPONENTS
+============================================================ */
 
-        .input:focus {
-          border-color: rgb(99 102 241);
-          box-shadow: 0 0 0 3px rgb(99 102 241 / 0.1);
-        }
+function Card({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="bg-white rounded-[1.5rem] border border-slate-200/80 shadow-sm p-5 sm:p-6">
+      {children}
+    </section>
+  );
+}
 
-        textarea.input {
-          resize: vertical;
-        }
-      `}</style>
+function PageHeading({
+  eyebrow,
+  title,
+  text,
+}: {
+  eyebrow: string;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div>
+      <div className="text-xs font-black tracking-[0.2em] text-sky-700">
+        {eyebrow}
+      </div>
+
+      <h2 className="text-3xl sm:text-4xl font-black tracking-tight mt-2">
+        {title}
+      </h2>
+
+      <p className="text-slate-500 mt-3 max-w-2xl leading-6">
+        {text}
+      </p>
     </div>
+  );
+}
+
+function SectionTitle({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <div className="mb-5">
+      <h3 className="font-black text-lg">{title}</h3>
+
+      {subtitle && (
+        <p className="text-sm text-slate-500 mt-1 leading-5">
+          {subtitle}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Input({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="block text-xs font-bold text-slate-500 mb-2">
+        {label}
+      </span>
+
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-300"
+      />
+    </label>
+  );
+}
+
+function Textarea({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="block text-xs font-bold text-slate-500 mb-2">
+        {label}
+      </span>
+
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full min-h-28 rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-sky-200 resize-none"
+      />
+    </label>
+  );
+}
+
+function Select({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+}) {
+  return (
+    <label className="block">
+      <span className="block text-xs font-bold text-slate-500 mb-2">
+        {label}
+      </span>
+
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-sky-200"
+      >
+        <option value="">Select...</option>
+
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function MetricCard({
+  number,
+  label,
+  icon,
+}: {
+  number: number;
+  label: string;
+  icon: string;
+}) {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-5">
+      <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center">
+        {icon}
+      </div>
+
+      <div className="text-3xl font-black mt-5">
+        {number}
+      </div>
+
+      <div className="text-sm text-slate-500 mt-1">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function FeatureCard({
+  icon,
+  title,
+  text,
+  onClick,
+}: {
+  icon: string;
+  title: string;
+  text: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="text-left bg-white rounded-2xl border border-slate-200 p-6 hover:-translate-y-1 hover:shadow-lg transition"
+    >
+      <div className="h-12 w-12 rounded-xl bg-slate-100 flex items-center justify-center text-xl">
+        {icon}
+      </div>
+
+      <h3 className="font-black text-lg mt-5">
+        {title}
+      </h3>
+
+      <p className="text-sm text-slate-500 leading-6 mt-2">
+        {text}
+      </p>
+
+      <div className="mt-5 text-sm font-bold text-sky-700">
+        Explore →
+      </div>
+    </button>
+  );
+}
+
+function EmptyState({
+  title,
+  text,
+}: {
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="text-center py-8">
+      <div className="text-3xl">✦</div>
+      <h3 className="font-black mt-3">{title}</h3>
+      <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto leading-6">
+        {text}
+      </p>
+    </div>
+  );
+}
+
+function ScoreRow({
+  label,
+  score,
+}: {
+  label: string;
+  score?: number | null;
+}) {
+  const value = Number(score || 0);
+
+  return (
+    <div>
+      <div className="flex justify-between text-xs mb-1">
+        <span className="font-medium text-slate-500">
+          {label}
+        </span>
+        <span className="font-bold">{value || "—"}</span>
+      </div>
+
+      <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-sky-500"
+          style={{ width: scoreBar(value) }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function Roadmap({
+  number,
+  title,
+  status,
+}: {
+  number: string;
+  title: string;
+  status: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-black text-sky-700">
+          {number}
+        </span>
+
+        <span className="text-[10px] font-black tracking-wider rounded-full bg-white border border-slate-200 px-2 py-1">
+          {status}
+        </span>
+      </div>
+
+      <div className="font-black mt-5">{title}</div>
+    </div>
+  );
+}
+
+function TimelinePost({
+  post,
+  people,
+  businesses,
+  opportunities,
+  comments,
+  liked,
+  commentValue,
+  setCommentValue,
+  onLike,
+  onComment,
+  onShare,
+  onApply,
+}: {
+  post: Post;
+  people: Person[];
+  businesses: Business[];
+  opportunities: Opportunity[];
+  comments: Comment[];
+  liked: boolean;
+  commentValue: string;
+  setCommentValue: (value: string) => void;
+  onLike: () => void;
+  onComment: () => void;
+  onShare: () => void;
+  onApply: () => void;
+}) {
+  const author =
+    people.find((person) => person.id === post.author_id) ||
+    people.find((person) => person.id === post.job_seeker_id);
+
+  const business = businesses.find(
+    (item) => item.id === post.business_id
+  );
+
+  const opportunity = opportunities.find(
+    (item) => item.id === post.opportunity_id
+  );
+
+  const authorName =
+    author?.name ||
+    business?.name ||
+    business?.company_name ||
+    (post.author_type === "admin"
+      ? "GUARDIAN WORK"
+      : "Work Community Member");
+
+  const authorRole =
+    author?.job_title ||
+    (business ? "Business" : post.author_type === "admin" ? "Platform" : "Work Identity");
+
+  const typeLabel =
+    post.post_type === "availability"
+      ? "AVAILABLE FOR WORK"
+      : post.post_type === "work_showcase"
+      ? "WORK SHOWCASE"
+      : post.post_type === "experience"
+      ? "WORK EXPERIENCE"
+      : post.post_type === "opportunity"
+      ? "OPPORTUNITY"
+      : "WORK UPDATE";
+
+  return (
+    <article className="bg-white rounded-[1.5rem] border border-slate-200/80 shadow-sm overflow-hidden">
+      <div className="p-5 sm:p-6">
+        <div className="flex gap-3">
+          <div className="h-11 w-11 shrink-0 rounded-xl bg-slate-100 flex items-center justify-center text-lg">
+            {business ? "▤" : "◎"}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="font-black text-sm">
+                  {authorName}
+                </div>
+
+                <div className="text-xs text-slate-500 mt-0.5">
+                  {authorRole}
+                  {post.location ? ` • ${post.location}` : ""}
+                  {post.created_at ? ` • ${timeAgo(post.created_at)}` : ""}
+                </div>
+              </div>
+
+              <span className="shrink-0 text-[9px] uppercase tracking-[0.14em] font-black text-sky-700 bg-sky-50 rounded-full px-2 py-1">
+                {typeLabel}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {post.title && (
+          <h3 className="text-xl font-black mt-5">
+            {post.title}
+          </h3>
+        )}
+
+        {post.content && (
+          <p className="text-sm sm:text-base text-slate-700 leading-7 mt-4 whitespace-pre-wrap">
+            {post.content}
+          </p>
+        )}
+
+        {author?.skills && (
+          <div className="flex flex-wrap gap-2 mt-4">
+            {normalizeSkills(author.skills)
+              .slice(0, 5)
+              .map((skill) => (
+                <span
+                  key={skill}
+                  className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium"
+                >
+                  {skill}
+                </span>
+              ))}
+          </div>
+        )}
+
+        {opportunity && (
+          <div className="mt-5 rounded-2xl bg-[#07111f] text-white p-5">
+            <div className="text-[10px] uppercase tracking-wider text-sky-300 font-black">
+              Opportunity
+            </div>
+
+            <div className="text-lg font-black mt-1">
+              {opportunity.title}
+            </div>
+
+            <div className="text-xs text-white/50 mt-1">
+              {[opportunity.town, opportunity.province]
+                .filter(Boolean)
+                .join(", ")}
+            </div>
+
+            <div className="flex flex-wrap gap-2 mt-4">
+              {opportunity.employment_type && (
+                <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs">
+                  {opportunity.employment_type}
+                </span>
+              )}
+
+              {opportunity.experience_required && (
+                <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs">
+                  {opportunity.experience_required}
+                </span>
+              )}
+            </div>
+
+            <button
+              onClick={onApply}
+              className="mt-5 px-4 py-2.5 rounded-xl bg-white text-[#07111f] text-sm font-black"
+            >
+              Apply
+            </button>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between border-t border-slate-100 mt-5 pt-4 text-xs text-slate-500">
+          <span>
+            {post.likes_count || 0} likes
+          </span>
+
+          <span>
+            {post.comments_count || 0} comments •{" "}
+            {post.shares_count || 0} shares
+          </span>
+        </div>
+
+        <div className="grid grid-cols-3 border-t border-slate-100 mt-3 pt-2">
+          <button
+            onClick={onLike}
+            className={`py-2.5 rounded-xl text-sm font-bold ${
+              liked
+                ? "text-sky-700 bg-sky-50"
+                : "text-slate-500 hover:bg-slate-50"
+            }`}
+          >
+            {liked ? "♥ Liked" : "♡ Like"}
+          </button>
+
+          <button
+            onClick={() => {
+              const element = document.getElementById(
+                `comment-${post.id}`
+              );
+
+              element?.focus();
+            }}
+            className="py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-50"
+          >
+            💬 Comment
+          </button>
+
+          <button
+            onClick={onShare}
+            className="py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-50"
+          >
+            ↗ Share
+          </button>
+        </div>
+
+        {comments.length > 0 && (
+          <div className="mt-4 space-y-3">
+            {comments.map((comment) => {
+              const commenter = people.find(
+                (person) => person.id === comment.author_id
+              );
+
+              return (
+                <div
+                  key={comment.id}
+                  className="rounded-xl bg-slate-50 p-3"
+                >
+                  <div className="font-bold text-xs">
+                    {commenter?.name || "Work Community Member"}
+                  </div>
+
+                  <div className="text-sm text-slate-600 mt-1">
+                    {comment.content}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="flex gap-2 mt-4">
+          <input
+            id={`comment-${post.id}`}
+            value={commentValue}
+            onChange={(e) => setCommentValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                onComment();
+              }
+            }}
+            placeholder="Add a work-related comment..."
+            className="flex-1 rounded-xl bg-slate-50 border border-slate-200 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-sky-200"
+          />
+
+          <button
+            onClick={onComment}
+            className="px-4 rounded-xl bg-[#07111f] text-white text-sm font-bold"
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    </article>
   );
 }
