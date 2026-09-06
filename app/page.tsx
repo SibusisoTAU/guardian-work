@@ -498,13 +498,16 @@ export default function Page() {
     if (!currentPerson || !targetedAds.length) return;
     const today = new Date(); today.setHours(0,0,0,0);
     targetedAds.forEach(ad => {
-        useEffect(() => {
+          useEffect(() => {
     if (!currentPerson?.id) return;
     const alreadyRecorded = false;
     if (!alreadyRecorded) {
+      // your logic here
+    }
   }, [currentPerson?.id]);
 
   const createSponsoredAd = async () => {
+    if (!adForm.title.trim()) {
     if (!adForm.title.trim()) return;
   const createSponsoredAd = async () => {
     if (!adForm.title.trim() || !adForm.cta_url.trim()) return flash("Ad title and destination URL are required.");
