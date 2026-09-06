@@ -498,12 +498,18 @@ export default function Page() {
     if (!currentPerson || !targetedAds.length) return;
     const today = new Date(); today.setHours(0,0,0,0);
     targetedAds.forEach(ad => {
-      const alreadyRecorded = adImpressions.some(x => x.ad_id === ad.id && x.event_type === "impression" && new Date(x.created_at).getTime() >= today.getTime());
-      if (!alreadyRecorded) recordAdEvent(ad.id, "impression");
-    });
-  const targetPerson = ... // must be at top of component
+        useEffect(() => {
+    if (!currentPerson?.id) return;
+    const alreadyRecorded = false;
+    if (!alreadyRecorded) {
+      // your recording logic here
+    }
+  }, [currentPerson?.id]);
 
-useEffect(() => {
+  const targetPerson = null; // or your real targetPerson logic BELOW the useEffect
+
+  useEffect(() => {
+    if (!alreadyRecorded) {
   if (!alreadyRecorded) {
     // ...
   }
