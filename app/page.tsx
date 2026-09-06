@@ -536,7 +536,7 @@ export default function Page() {
       const alreadyRecorded = adImpressions.some(x => x.ad_id === ad.id && x.event_type === "impression" && new Date(x.created_at).getTime() >= today.getTime());
       if (!alreadyRecorded) recordAdEvent(ad.id, "impression");
     });
-  }, [currentPerson?.id, targetedAds.map(a => a.id).join(",")]);
+  }, [currentPerson?.id,]);
 
   const createSponsoredAd = async () => {
     if (!adForm.title.trim() || !adForm.cta_url.trim()) return flash("Ad title and destination URL are required.");
