@@ -1118,8 +1118,7 @@ export default function Page() {
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
         <button onClick={() => nav("home")} className="flex items-center gap-3 text-left">
-          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-600 font-black text-white shadow-lg shadow-emerald-200">
-            GW
+          <img src="/logo.png" alt="My Guardian Link" className="h-11 w-11 rounded-full object-contain bg-white p-1 border border-slate-200" />
           </div>
           <div>
             <div className="text-lg font-black tracking-tight text-slate-900">
