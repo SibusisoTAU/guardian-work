@@ -502,19 +502,10 @@ export default function Page() {
     if (!currentPerson?.id) return;
     const alreadyRecorded = false;
     if (!alreadyRecorded) {
-      // your recording logic here
-    }
   }, [currentPerson?.id]);
 
-  const targetPerson = null; // or your real targetPerson logic BELOW the useEffect
-
-  useEffect(() => {
-    if (!alreadyRecorded) {
-  if (!alreadyRecorded) {
-    // ...
-  }
-}, [currentPerson?.id]); // <- clean, no 'target'
-
+  const createSponsoredAd = async () => {
+    if (!adForm.title.trim()) return;
   const createSponsoredAd = async () => {
     if (!adForm.title.trim() || !adForm.cta_url.trim()) return flash("Ad title and destination URL are required.");
     const { data, error } = await supabase.from("sponsored_ads").insert({ ...adForm, business_id: currentBusiness?.id || null, status: "active" }).select().single();
