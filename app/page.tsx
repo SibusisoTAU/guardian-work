@@ -2612,7 +2612,7 @@ export default function Page() {
                 );
               })}
             </div>
-          </Card>
+          {/* </Card> */}
         )}
 
         {/* <Card id="guardian-timeline-composer" className="overflow-hidden"> */}
