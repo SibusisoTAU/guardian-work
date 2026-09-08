@@ -2615,7 +2615,7 @@ export default function Page() {
           </Card>
         )}
 
-        <Card id="guardian-timeline-composer" className="overflow-hidden">
+        {/* <Card id="guardian-timeline-composer" className="overflow-hidden"> */}
           <div className="p-5">
             <div className="flex gap-3">
               <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-orange-100 font-black text-orange-700">{initials(currentBusiness?.name || currentPerson?.name || "GW")}</div>
