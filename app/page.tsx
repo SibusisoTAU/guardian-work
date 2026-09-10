@@ -1457,7 +1457,7 @@ export default function Page() {
     await saveNotificationPreferences({ whatsapp_enabled: true, whatsapp_opt_in: true, whatsapp_subscription_status: "pending", whatsapp_payment_method: paymentMethod, whatsapp_payment_status: "pending" } as any);
     setPaymentOpen(false);
     setPaymentProcessing(false);
-    flash(`WhatsApp payment request created via ${paymentMethod.replace("_", " ")}. Complete the selected payment method.`);
+    flash(`WhatsApp payment request created via ${String(paymentMethod).replace("_", " ")}. Complete the selected payment to activate.`);
   };
 
   const testWhatsAppAlerts = () => {
