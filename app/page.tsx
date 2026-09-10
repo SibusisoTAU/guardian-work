@@ -3423,8 +3423,8 @@ export default function Page() {
       await startPaystackCheckout({ requestId: data.id, amountCents: Math.round(amount * 100), supportType });
       return;
     }
-    setSupportModalOpen(false);
-    flash(`Support request created via ${paymentMethod.replace("_", " ")}. Complete the selected payment method; GUARDIAN will only mark it paid after provider confirmation.`);
+        setSupportModalOpen(false);
+    flash(`Support request created via ${String(paymentMethod).replace("_", " ")}. Complete the selected payment method; GUARDIAN will only mark it paid after provider confirmation.`);
   };
 
   const renderSupport = () => (
