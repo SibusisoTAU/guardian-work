@@ -1490,12 +1490,21 @@ export default function Page() {
 
   const toggleWorkDiscovery = async (discoverable: boolean) => {
     if (!currentPerson) return;
-    const { data, error } = await supabase.from("Job seekers").update({ profile_visibility: discoverable ? "discoverable" : "hidden" }).eq("id", currentPerson.id).select().single();
-    if (error) {
-      await supabase.storage.from("guardian-media").remove([path]);
-      return flash(error.message);
-    }
-    setCurrentPerson(data as Person);
+    const { data, error } = await supabase
+ .from("Job seekers")
+ .update({
+    // your fields here
+  })
+ .eq("id", currentPerson.id)
+ .select()
+ .single();
+
+if (error) {
+  await supabase.storage.from("guardian-media").remove([path]);
+  return flash(error.message);
+}
+
+setCurrentPerson(data as Person);
     setPeople(old => old.map(p => p.id === currentPerson.id ? data as Person : p));
     if (workId) {
       const { data: updated, error: idError } = await supabase.from("guardian_work_ids").update({ discoverable }).eq("id", workId.id).select().single();
