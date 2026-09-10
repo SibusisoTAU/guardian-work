@@ -3508,7 +3508,7 @@ export default function Page() {
                 <div className="mt-1 h-2 rounded-full bg-slate-100">
                   <div
                     className="h-2 rounded-full bg-emerald-600"
-                    style={{ width: `${applications.length ? (Number(y) / applications.length) * 100 : 0}%` }}
+                       style={{ width: `${progress}%` }}
                   />
                 </div>
               </div>
