@@ -3424,7 +3424,7 @@ export default function Page() {
       return;
     }
     setSupportModalOpen(false);
-    flash(`Support request created via ${paymentMethod.replace("_", " ")}. Complete the selected payment method; GUARDIAN will only mark it paid after provider confirmation.`);
+    flash(`Support request created via ${String(paymentMethod).replace("_", " ")}.
   };
 
   const renderSupport = () => (
