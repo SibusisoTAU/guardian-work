@@ -1,7 +1,12 @@
 'use client'
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+)
 
 export default function BusinessSetup() {
   const router = useRouter()
@@ -35,21 +40,18 @@ export default function BusinessSetup() {
   }
 
   const inputClass = "w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-black focus:outline-none transition"
-
   return (
     <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center p-4">
       <div className="w-full max-w-4xl bg-white rounded-[24px] shadow-xl p-8">
         <h2 className="text-3xl font-bold">Business Profile Setup</h2>
         <p className="text-gray-500 mb-8">Tell us about your business to get started</p>
         <div className="grid md:grid-cols-2 gap-5">
-          <div><label className="text-sm font-semibold">Business Name</label><input className={inputClass} onChange={e=>setForm({...form,business_name:e.target.value})} /></div>
+          <div><label className="text-sm font-semibold">Business Name</label><input className={inputClass} placeholder="Cape Facilities (Pty) Ltd" onChange={e=>setForm({...form,business_name:e.target.value})} /></div>
           <div><label className="text-sm font-semibold">Town</label><input className={inputClass} placeholder="Pretoria" onChange={e=>setForm({...form,town:e.target.value})} /></div>
-          <div><label className="text-sm font-semibold">Registration Number</label><input className={inputClass} onChange={e=>setForm({...form,registration_number:e.target.value})} /></div>
-          <div><label className="text-sm font-semibold">Website</label><input className={inputClass} onChange={e=>setForm({...form,website:e.target.value})} /></div>
           <div><label className="text-sm font-semibold">Contact Person</label><input className={inputClass} onChange={e=>setForm({...form,contact_person:e.target.value})} /></div>
           <div><label className="text-sm font-semibold">Phone</label><input className={inputClass} placeholder="+27 82 123 4567" onChange={e=>setForm({...form,phone:e.target.value})} /></div>
           <div><label className="text-sm font-semibold">Province</label><select className={inputClass} value={form.province} onChange={e=>setForm({...form,province:e.target.value})}><option>Gauteng</option><option>Western Cape</option><option>KZN</option><option>Eastern Cape</option><option>Limpopo</option><option>Mpumalanga</option><option>North West</option><option>Free State</option><option>Northern Cape</option></select></div>
-          <div><label className="text-sm font-semibold">Company Size</label><select className={inputClass} onChange={e=>setForm({...form,company_size:e.target.value})}><option>11-50 employees</option><option>1-10</option><option>51-200</option><option>200+</option></select></div>
+          <div><label className="text-sm font-semibold">Website</label><input className={inputClass} onChange={e=>setForm({...form,website:e.target.value})} /></div>
         </div>
         <button onClick={save} className="w-full mt-8 py-3 rounded-xl bg-black text-white font-semibold">{loading?'Saving...':'Continue →'}</button>
       </div>
