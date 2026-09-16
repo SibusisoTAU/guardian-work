@@ -3238,26 +3238,22 @@ export default function Page() {
               return (
                 <div key={a.id} className="mb-3 rounded-2xl border border-slate-200 p-4">
                   <div className="font-black text-slate-900">{o?.title || "Opportunity"}</div>
-                  <div className={`mt-2 inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusClasses(a.status)}`}>
-                    {statusLabel[a.status]}
-                  </div>
-                </div>
-              );
-            })}
-            {!myApplications.length && (
-              <div className="rounded-2xl bg-slate-50 p-6 text-sm text-slate-500">
-                You have not applied to an opportunity yet.
-              </div>
-            )}
-          </div>
-        </Card>
+                return (
+    <div key={a.id} className="mb-3 rounded-2xl border border-slate-200 p-4">
+      <div className="font-black text-slate-900">{o?.title || "Opportunity"}</div>
+      <div className={`mt-2 inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusClasses[a.status]}`}>
+        {statusLabel[a.status]}
       </div>
     </div>
-   }
+  );
+  });
+};
 
-  const renderWork = () => {
+const renderWork = () => {
   if (account?.role === "business" && currentBusiness) {
-    const businessName = currentBusiness.business_name || currentBusiness.name || "Business";
+    const businessName = currentBusiness.business_name || "Business";
+    const location = [currentBusiness.town, currentBusiness.province].filter(Boolean).join(", ");
+    return (
     const location = [currentBusiness.town, currentBusiness.province].filter(Boolean).join(", ");
     return (
       <div>... your business card ...</div>
