@@ -3255,10 +3255,10 @@ export default function Page() {
     </div>
   );
 
-  const renderWork = () => (
+    const renderWork = () => {
     if (account?.role === "business" && currentBusiness) {
       const businessName = currentBusiness.business_name || currentBusiness.name || "Your business";
-      const location = [currentBusiness.town, currentBusiness.province].filter(Boolean).join(" · ");
+      const location = [currentBusiness.town, currentBusiness.province].filter(Boolean).join(" . ");
       return (
         <div className="space-y-6">
           <div>
