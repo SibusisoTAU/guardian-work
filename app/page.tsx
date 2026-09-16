@@ -3253,13 +3253,18 @@ export default function Page() {
         </Card>
       </div>
     </div>
-  );
+   }
 
-  const renderWork = () => (
-    if (account?.role === "business" && currentBusiness) {
-      const businessName = currentBusiness.business_name || currentBusiness.name || "Your business";
-      const location = [currentBusiness.town, currentBusiness.province].filter(Boolean).join(" · ");
-      return (
+  const renderWork = () => {
+  if (account?.role === "business" && currentBusiness) {
+    const businessName = currentBusiness.business_name || currentBusiness.name || "Business";
+    const location = [currentBusiness.town, currentBusiness.province].filter(Boolean).join(", ");
+    return (
+      <div>... your business card ...</div>
+    );
+  }
+  return null;
+};
         <div className="space-y-6">
           <div>
             <div className="text-xs font-black uppercase tracking-widest text-orange-500">My Business</div>
