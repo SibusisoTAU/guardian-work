@@ -3253,10 +3253,27 @@ export default function Page() {
         </Card>
       </div>
     </div>
-   }
+</Card>
+</div>
+</div>
 
-  const renderWork = () => (
-    if (account?.role === "business" && currentBusiness) {
+const renderWork = () => {
+  if (account?.role === "business" && currentBusiness) {
+    return (
+      <Card>
+        <div>
+          {/* Business-specific content goes here */}
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <div>
+      {/* Fallback content goes here */}
+    </div>
+  );
+};
       const businessName = currentBusiness.business_name || currentBusiness.name || "Your business";
       const location = [currentBusiness.town, currentBusiness.province].filter(Boolean).join(" · ");
       return (
