@@ -3114,7 +3114,8 @@ export default function Page() {
     </div>
   );
 
-  const renderHome = () => (
+  const renderHome = () => {
+  return (
     <div className="space-y-6">
       <section className="overflow-hidden rounded-3xl bg-emerald-700 p-6 text-white shadow-xl sm:p-8">
         <div className="grid gap-8 lg:grid-cols-[1.4fr_.6fr] lg:items-center">
