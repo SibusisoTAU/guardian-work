@@ -3253,7 +3253,7 @@ export default function Page() {
         </Card>
       </div>
     </div>
-  );
+   }
 
   const renderWork = () => (
     if (account?.role === "business" && currentBusiness) {
