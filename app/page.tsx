@@ -3538,8 +3538,8 @@ export default function Page() {
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">GUARDIAN compares skills, location, Work Identity, experience and availability to rank opportunities. The score is transparent and rule-based - not a mystery number.</p>
       </div>
 
-      {currentPerson ? (
-        <>
+      currentPerson ? (
+    <>
           <Card className="border-emerald-200 p-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div><div className="text-xs font-black uppercase tracking-widest text-emerald-600">Your Match Engine</div><h2 className="mt-1 text-xl font-black text-slate-900">Best opportunities for your Work Identity</h2><p className="mt-1 text-xs text-slate-500">40% skills - 25% location - 15% identity - 10% experience - 10% availability.</p></div>
