@@ -31,10 +31,10 @@ type Person = {
 };
 
 type Business = {
+type Business = {
   id: string;
-  auth_user_id?: string | null;
-  name?: string | null;
-  business_name?: string | null;
+  auth_user_id: string; // REQUIRED - NEVER NULL
+  business_name: string; // ONLY USE THIS ONE
   email?: string | null;
   phone?: string | null;
   town?: string | null;
@@ -42,12 +42,10 @@ type Business = {
   description?: string | null;
   industry?: string | null;
   business_type?: string | null;
-  registration_number?: string | null;
+  hiring_status?: string | null;
   contact_person?: string | null;
   website?: string | null;
-  services?: string | null;
   company_size?: string | null;
-  hiring_status?: string | null;
 };
 
 type Opportunity = {
