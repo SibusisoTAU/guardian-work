@@ -31,10 +31,12 @@ type Person = {
 };
 
 type Business = {
-type Business = {
   id: string;
-  auth_user_id: string; // REQUIRED - NEVER NULL
-  business_name: string; // ONLY USE THIS ONE
+  auth_user_id: string;
+  business_name: string;
+  province: string | null;
+  hiring_status: string | null;
+};
   email?: string | null;
   phone?: string | null;
   town?: string | null;
