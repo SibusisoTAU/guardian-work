@@ -13,15 +13,26 @@ export default function BusinessDashboard() {
   const [business, setBusiness] = useState(null)
 
   useEffect(() => {
-    async function load(){
-      const { data: { user } } = await supabase.auth.getUser()
-      if(!user){ router.push('/'); return }
-      const { data } = await supabase.from('businesses').select('*').eq('auth_user_id', user.id).single()
-      if(!data){ router.push('/business/setup'); return }
-      setBusiness(data)
+  async function load(){
+    const { data: { user } } = await supabase.auth.getUser()
+    if(!user){ router.push('/'); return }
+    
+    // FIXED: Filter by auth_user_id = logged in user
+    const { data, error } = await supabase
+      .from('businesses')
+      .select('*')
+      .eq('auth_user_id', user.id)
+      .single()
+      
+    if(!data || error){ 
+      console.log('No business for this user, redirecting to setup:', user.id)
+      router.push('/business/setup'); 
+      return 
     }
-    load()
-  }, [])
+    setBusiness(data)
+  }
+  load()
+}, [])
 
   if(!business) return <div className="min-h-screen flex items-center justify-center bg-black text-white">Loading...</div>
 
