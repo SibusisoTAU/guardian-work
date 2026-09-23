@@ -1,7 +1,12 @@
 "use client"
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '../../lib/supabase'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+)
 
 export default function MyWorkPage() {
   const router = useRouter()
@@ -10,13 +15,11 @@ export default function MyWorkPage() {
     async function checkIfBusiness() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-
       const { data: business } = await supabase
-       .from('businesses')
-       .select('id')
-       .eq('auth_user_id', user.id)
-       .single()
-
+      .from('businesses')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .single()
       if (business) {
         router.push('/business')
       }
