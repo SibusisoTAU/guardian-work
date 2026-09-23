@@ -31,16 +31,13 @@ type Person = {
 };
 
 type Business = {
+type Business = {
   id: string;
   auth_user_id: string;
   business_name: string;
   province: string | null;
   hiring_status: string | null;
 };
-  email?: string | null;
-  phone?: string | null;
-  town?: string | null;
-  province?: string | null;
   description?: string | null;
   industry?: string | null;
   business_type?: string | null;
