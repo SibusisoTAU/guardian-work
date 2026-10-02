@@ -16,17 +16,25 @@ export default function BusinessPage() {
   const [logs, setLogs] = useState<Log[]>([])
 
   useEffect(() => {
-    const loadSites = async () => {
-      try {
-        const { data } = await supabase.from("sites").select("*").limit(20)
-        if (data && data.length > 0) {
-          setSites(data as Site[])
-          setSelectedSite(data[0] as Site)
-        }
-      } catch (e) {}
+  const loadSites = async () => {
+    try {
+      const { data, error } = await supabase.from('sites').select('*')
+
+      if (error) throw error
+
+      if (data && data.length > 0) {
+        setSites(data)
+        setSelectedSite(data[0])
+      }
+    } catch (error) {
+      console.error('Error loading sites', error)
+      setSites([{ id: 'sandton-001', name: 'Sandton City Site' }])
+      setSelectedSite({ id: 'sandton-001', name: 'Sandton City Site' })
     }
-    loadSites()
-  }, [])
+  }
+
+  loadSites()
+}, [])
 
   useEffect(() => {
     const loadLogs = async () => {
