@@ -1,11 +1,7 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
-import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { useEffect, useRef, useState } from 'react'
+import { supabase } from '@/lib/supabase'
 
 type Props = {
   siteId: string
@@ -15,38 +11,72 @@ type Props = {
 
 export default function SiteLogTimeline({
   siteId,
-  siteName = "Sandton City Site",
-  currentUser
+  siteName = 'Sandton City Site',
+  currentUser,
 }: Props) {
-  const [logs, setLogs] = useState<any[]>([])
+  const [logs, setLogs] = useState<any[]>([
+    {
+      id: 'demo-1',
+      type: 'boss',
+      message: 'Demo mode is active. Connect Supabase to sync live site logs.',
+      created_at: new Date().toISOString(),
+      meta: {},
+    },
+  ])
   const [msg, setMsg] = useState('')
-  const [uploading, setUp] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  // Load + realtime
   useEffect(() => {
+    if (!supabase) {
+      setLogs([
+        {
+          id: 'demo-1',
+          type: 'boss',
+          message: 'Demo mode is active. Connect Supabase to sync live site logs.',
+          created_at: new Date().toISOString(),
+          meta: {},
+        },
+      ])
+      return
+    }
+
     const load = async () => {
       const { data } = await supabase
-       .from('site_logs')
-       .select('*')
-       .eq('site_id', siteId)
-       .order('created_at', { ascending: true })
+        .from('site_logs')
+        .select('*')
+        .eq('site_id', siteId)
+        .order('created_at', { ascending: true })
+
       if (data) setLogs(data)
     }
-    load()
+
+    load().catch(() => {
+      setLogs([
+        {
+          id: 'demo-1',
+          type: 'boss',
+          message: 'Supabase connection unavailable. Showing local demo data instead.',
+          created_at: new Date().toISOString(),
+          meta: {},
+        },
+      ])
+    })
 
     const ch = supabase
-     .channel(`site-${siteId}`)
-     .on('postgres_changes', {
+      .channel(`site-${siteId}`)
+      .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'site_logs',
-        filter: `site_id=eq.${siteId}`
+        filter: `site_id=eq.${siteId}`,
       }, (payload) => {
-        setLogs(p => [...p, payload.new])
+        setLogs((p) => [...p, payload.new])
       })
-     .subscribe()
-    return () => { supabase.removeChannel(ch) }
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(ch)
+    }
   }, [siteId])
 
   useEffect(() => {
@@ -55,39 +85,49 @@ export default function SiteLogTimeline({
 
   const sendLog = async (type: string, extra: any = {}) => {
     if (!msg && type === 'note') return
+
+    const message = msg || extra.message
+
+    if (!supabase) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          id: `demo-${Date.now()}`,
+          type,
+          message,
+          created_at: new Date().toISOString(),
+          meta: extra.meta || {},
+        },
+      ])
+      setMsg('')
+      return
+    }
+
     const { data: { user } } = await supabase.auth.getUser()
     await supabase.from('site_logs').insert({
       site_id: siteId,
       business_id: currentUser?.business_id,
       user_id: user?.id,
       type,
-      message: msg || extra.message,
-      meta: extra.meta || {}
+      message,
+      meta: extra.meta || {},
     })
     setMsg('')
   }
 
   return (
     <div className="max-w-md mx-auto bg-white rounded-[28px] overflow-hidden shadow-xl border">
-      {/* GREEN HEADER - like screenshot */}
       <div className="bg-[#1a8a3a] text-white p-4 flex items-center gap-3">
         <button className="text-2xl">←</button>
-        <h1 className="font-bold text-[18px] leading-tight">
-          SITE LOG - {siteName}
-        </h1>
+        <h1 className="font-bold text-[18px] leading-tight">SITE LOG - {siteName}</h1>
         <div className="ml-auto flex gap-2">🔍 •••</div>
       </div>
 
       <div className="bg-gray-50 px-4 py-2 flex justify-between items-center text-xs">
-        <span className="flex items-center gap-1 font-bold text-green-700">
-          MY GUARDIAN WORK
-        </span>
-        <span className="bg-orange-100 text-orange-600 px-2 py-1 rounded-full">
-          LIVE • Active Site
-        </span>
+        <span className="flex items-center gap-1 font-bold text-green-700">MY GUARDIAN WORK</span>
+        <span className="bg-orange-100 text-orange-600 px-2 py-1 rounded-full">LIVE • Active Site</span>
       </div>
 
-      {/* TIMELINE */}
       <div className="p-4 space-y-5 max-h-[70vh] overflow-y-auto">
         {logs.map((log, i) => (
           <div key={log.id || i} className="flex gap-3">
@@ -132,12 +172,11 @@ export default function SiteLogTimeline({
         <div ref={bottomRef} />
       </div>
 
-      {/* INPUT BAR */}
       <div className="p-3 border-t flex gap-2 items-center bg-white">
         <button className="text-orange-500">📎</button>
         <input
           value={msg}
-          onChange={e => setMsg(e.target.value)}
+          onChange={(e) => setMsg(e.target.value)}
           placeholder="Add note or evidence..."
           className="flex-1 bg-gray-100 rounded-full px-4 py-2 text-sm"
         />

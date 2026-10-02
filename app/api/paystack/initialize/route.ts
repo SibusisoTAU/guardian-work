@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
+    if (!process.env.PAYSTACK_SECRET_KEY) {
+      return NextResponse.json(
+        { error: "Paystack is not configured. Add PAYSTACK_SECRET_KEY to your environment." },
+        { status: 503 }
+      );
+    }
+
     const body = await req.json();
     const email = body.email || "test@guardianwork.co.za";
     const amount = body.amount_cents || 1000;
@@ -15,7 +22,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         email,
         amount,
-        callback_url: process.env.NEXT_PUBLIC_SITE_URL,
+        callback_url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
       }),
     });
 
@@ -23,6 +30,7 @@ export async function POST(req: Request) {
     if (!data.status) {
       return NextResponse.json({ error: data.message }, { status: 400 });
     }
+
     return NextResponse.json({
       authorization_url: data.data.authorization_url,
       reference: data.data.reference,
