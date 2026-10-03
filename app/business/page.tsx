@@ -1,117 +1,208 @@
 "use client"
-import { useEffect, useState } from "react"
+
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { createClient } from "@supabase/supabase-js"
 
+// FIX 1: Never throw at build time - use fallback
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-type Business = { id: string; business_name?: string | null; name?: string | null }
-type BusinessSite = { id: string; business_id: string; name?: string | null; site_name?: string | null; address?: string | null }
-type Activity = { id: string; business_id: string; site_id: string; activity_type: string; title: string; description: string; metadata: any; created_at: string }
+type Business = {
+  id: string
+  business_name?: string | null
+  name?: string | null
+  owner_id?: string | null
+  auth_user_id?: string | null
+  phone?: string | null
+  email?: string | null
+  province?: string | null
+  town?: string | null
+  address?: string | null
+  status?: string | null
+  is_active?: boolean | null
+}
+
+type Site = {
+  id: string
+  business_id?: string | null
+  name?: string | null
+  site_name?: string | null
+  address?: string | null
+  province?: string | null
+  town?: string | null
+  status?: string | null
+  is_active?: boolean | null
+  created_at?: string | null
+}
+
+type SiteActivity = {
+  id: string
+  business_id?: string | null
+  site_id?: string | null
+  activity_type?: string | null
+  type?: string | null
+  title?: string | null
+  description?: string | null
+  message?: string | null
+  created_at?: string | null
+}
+
+function getSiteName(site: Site) {
+  return site.name || site.site_name || "Unnamed site"
+}
+
+function getBusinessName(business: Business | null) {
+  return business?.name || business?.business_name || "Your Business"
+}
+
+function formatActivityType(activity: SiteActivity) {
+  return (activity.activity_type || activity.type || "ACTIVITY").replace(/_/g, " ").toUpperCase()
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "Just now"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "Recently"
+  return date.toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })
+}
+
+function getActivityText(activity: SiteActivity) {
+  return activity.message || activity.description || activity.title || "Workspace activity recorded."
+}
 
 export default function BusinessPage() {
+  const router = useRouter()
   const [business, setBusiness] = useState<Business | null>(null)
-  const [sites, setSites] = useState<BusinessSite[]>([])
-  const [selectedSite, setSelectedSite] = useState<BusinessSite | null>(null)
-  const [logs, setLogs] = useState<Activity[]>([])
-  const [loading, setLoading] = useState(true)
+  const [businessId, setBusinessId] = useState<string | null>(null)
+  const [sites, setSites] = useState<Site[]>([])
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null)
+  const [activities, setActivities] = useState<SiteActivity[]>([])
+  const [loadingBusiness, setLoadingBusiness] = useState(true)
+  const [loadingSites, setLoadingSites] = useState(false)
+  const [loadingActivities, setLoadingActivities] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [userName, setUserName] = useState<string>("")
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        if (!supabaseUrl ||!supabaseAnonKey) { setLoading(false); return }
-
-        const { data: { user } } = await supabase.auth.getUser()
-
-        // 1. Get business - try businesses table
-        let biz: Business | null = null
-        if (user) {
-          const { data } = await supabase.from("businesses").select("*").eq("owner_id", user.id).limit(1).maybeSingle()
-          if (!data) {
-            const { data: data2 } = await supabase.from("businesses").select("*").eq("auth_user_id", user.id).limit(1).maybeSingle()
-            if (data2) biz = data2
-          } else biz = data
-        }
-        if (!biz) {
-          const { data } = await supabase.from("businesses").select("*").limit(1).maybeSingle()
-          biz = data as Business
-        }
-        if (biz) setBusiness(biz)
-
-        // 2. Get sites - REAL TABLE: business_sites
-        const { data: siteData } = await supabase.from("business_sites").select("*").limit(20)
-        if (siteData && siteData.length > 0) {
-          setSites(siteData)
-          setSelectedSite(siteData[0])
-
-          // 3. Get activity - REAL TABLE: site_activity with real columns
-          const { data: actData } = await supabase.from("site_activity").select("*").eq("site_id", siteData[0].id).order("created_at", { ascending: false }).limit(100)
-          if (actData) setLogs(actData as Activity[])
-        }
-      } catch (e) {
-        console.error("load error", e)
-      } finally {
-        setLoading(false)
+  const loadBusiness = useCallback(async () => {
+    setLoadingBusiness(true)
+    setError(null)
+    try {
+      // FIX 2: Guard if env missing at runtime (not build time)
+      if (!supabaseUrl ||!supabaseAnonKey) {
+        setError("Supabase not configured. Check Vercel env vars.")
+        setLoadingBusiness(false)
+        return
       }
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      if (authError) throw authError
+      if (!user) { router.replace("/"); return }
+      setUserName(user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Business user")
+
+      const { data: businessRows, error: businessError } = await supabase.from("businesses").select("*").or(`owner_id.eq.${user.id},auth_user_id.eq.${user.id}`).limit(1)
+      if (businessError) throw businessError
+      const foundBusiness = businessRows?.[0] as Business | undefined
+      if (!foundBusiness) { router.replace("/business/setup"); return }
+      setBusiness(foundBusiness)
+      setBusinessId(foundBusiness.id)
+    } catch (err) {
+      console.error("Business loading error:", err)
+      setError(err instanceof Error? err.message : "We could not load your business.")
+    } finally {
+      setLoadingBusiness(false)
     }
-    load()
+  }, [router])
+
+  const loadSites = useCallback(async (currentBusinessId: string) => {
+    setLoadingSites(true)
+    setError(null)
+    try {
+      const { data, error: sitesError } = await supabase.from("business_sites").select("*").eq("business_id", currentBusinessId).order("created_at", { ascending: false })
+      if (sitesError) throw sitesError
+      const loadedSites = (data || []) as Site[]
+      setSites(loadedSites)
+      setSelectedSiteId((currentSelectedId) => {
+        if (currentSelectedId && loadedSites.some((site) => site.id === currentSelectedId)) return currentSelectedId
+        return loadedSites[0]?.id || null
+      })
+    } catch (err) {
+      console.error("Site loading error:", err)
+      setSites([])
+      setSelectedSiteId(null)
+      setError(err instanceof Error? err.message : "We could not load your business sites.")
+    } finally {
+      setLoadingSites(false)
+    }
   }, [])
 
-  useEffect(() => {
-    const reloadLogs = async () => {
-      if (!selectedSite) return
-      const { data } = await supabase.from("site_activity").select("*").eq("site_id", selectedSite.id).order("created_at", { ascending: false }).limit(100)
-      if (data) setLogs(data as Activity[])
+  const loadSiteActivity = useCallback(async (currentBusinessId: string, currentSiteId: string) => {
+    setLoadingActivities(true)
+    try {
+      const { data, error: activityError } = await supabase.from("site_activity").select("*").eq("business_id", currentBusinessId).eq("site_id", currentSiteId).order("created_at", { ascending: false }).limit(100)
+      if (activityError) throw activityError
+      setActivities((data || []) as SiteActivity[])
+    } catch (err) {
+      console.error("Site activity loading error:", err)
+      setActivities([])
+      setError(err instanceof Error? err.message : "We could not load the site timeline.")
+    } finally {
+      setLoadingActivities(false)
     }
-    reloadLogs()
-  }, [selectedSite?.id])
+  }, [])
 
-  if (loading) return <div className="min-h-screen bg-white p-8 text-black">Loading Guardian Work...</div>
+  useEffect(() => { void loadBusiness() }, [loadBusiness])
+  useEffect(() => { if (!businessId) return; void loadSites(businessId) }, [businessId, loadSites])
+  useEffect(() => {
+    if (!businessId ||!selectedSiteId) { setActivities([]); return }
+    void loadSiteActivity(businessId, selectedSiteId)
+  }, [businessId, selectedSiteId, loadSiteActivity])
 
-  return (
-    <div className="min-h-screen bg-[#f7f8fa]">
-      <header className="bg-white border-b p-4 flex items-center gap-3">
-        <div className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center text-white font-bold text-xl">GW</div>
-        <div>
-          <h1 className="font-black text-xl"><span className="text-slate-900">GUARDIAN</span> <span className="text-orange-500">WORK</span></h1>
-          <p className="text-[11px] tracking-[0.2em] text-slate-500">MAKE YOUR ABILITY DISCOVERABLE</p>
-          {business && <p className="text-xs text-emerald-600 mt-1">Business: {business.business_name || business.name || business.id.slice(0,8)}</p>}
+  const selectedSite = useMemo(() => {
+    if (!selectedSiteId) return null
+    return sites.find((site) => site.id === selectedSiteId) || null
+  }, [sites, selectedSiteId])
+
+  const refreshWorkspace = async () => {
+    setError(null)
+    if (!businessId) { await loadBusiness(); return }
+    await loadSites(businessId)
+    if (selectedSiteId) await loadSiteActivity(businessId, selectedSiteId)
+  }
+
+  if (loadingBusiness) {
+    return (
+      <div className="min-h-screen bg-[#f7f8fa] grid place-items-center p-6">
+        <div className="text-center">
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-600" />
+          <div className="mt-4 text-lg font-black text-slate-900">Loading GUARDIAN WORK</div>
+          <div className="mt-1 text-sm text-slate-500">Preparing your Business Workspace...</div>
         </div>
-      </header>
+      </div>
+    )
+  }
 
-      <main className="max-w-5xl mx-auto p-4">
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-          {sites.map(s => (
-            <button key={s.id} onClick={() => setSelectedSite(s)} className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold border ${selectedSite?.id === s.id? 'bg-slate-900 text-white' : 'bg-white text-slate-700'}`}>
-              {s.name || s.site_name || s.id.slice(0,8)}
-            </button>
-          ))}
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm border p-6">
-          <h2 className="font-bold text-lg">Live Gold Timeline - {selectedSite?.name || selectedSite?.site_name || 'No site selected'}</h2>
-          <p className="text-sm text-gray-500 mb-4">{logs.length} events from site_activity</p>
-
-          <div className="space-y-3">
-            {logs.length === 0? (
-              <div className="text-center py-10 text-gray-400 border-2 border-dashed rounded-xl">
-                No activity yet for this site.<br/>Your clock-in, boss message, GPS, photo will appear here.
-              </div>
-            ) : logs.map(l => (
-              <div key={l.id} className="flex gap-3 border-b border-gray-100 pb-3">
-                <div className="w-2 h-2 bg-[#FFD700] rounded-full mt-2"></div>
-                <div className="flex-1">
-                  <p className="text-xs text-orange-500 font-bold uppercase">{l.activity_type}</p>
-                  <p className="font-semibold text-sm text-slate-900">{l.title}</p>
-                  <p className="text-sm text-slate-600">{l.description}</p>
-                  <p className="text-xs text-gray-400 mt-1">{new Date(l.created_at).toLocaleString()} {l.metadata? `• ${JSON.stringify(l.metadata).slice(0,100)}` : ''}</p>
-                </div>
-              </div>
-            ))}
+  if (!business && error) {
+    return (
+      <div className="min-h-screen bg-[#f7f8fa] grid place-items-center p-6">
+        <div className="w-full max-w-lg rounded-3xl border border-red-200 bg-white p-7 shadow-sm">
+          <div className="text-xs font-black uppercase tracking-widest text-red-500">Business Workspace</div>
+          <h1 className="mt-2 text-2xl font-black text-slate-900">We couldn't load your business.</h1>
+          <p className="mt-3 text-sm leading-6 text-slate-500">{error}</p>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <button type="button" onClick={() => void loadBusiness()} className="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white hover:bg-emerald-700">Try again</button>
+            <button type="button" onClick={() => router.push("/")} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700">Back to GUARDIAN WORK</button>
           </div>
         </div>
-      </main>
-    </div>
-  )
-}    
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-[#f7f8fa] text-slate-900">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-emerald-600 text-lg font-black text-white shadow-lg shadow-emerald-100">GW</div>
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-black leading-none sm:text-xl"><span class
