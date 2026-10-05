@@ -170,7 +170,7 @@ function HeaderBar() {
           <span className="flex h-9 w-9 items-center justify-center text-white/90">
             <IconArrowLeft />
           </span>
-          <div className="leading-[0.9] text-[#f7fff8]">
+          <div className="leading-[0.92] text-[#f7fff8]">
             <div className="text-[18px] font-black tracking-[-0.06em]">SITE LOG - Sandton</div>
             <div className="text-[18px] font-black tracking-[-0.06em]">City Site</div>
           </div>
@@ -191,7 +191,7 @@ function HeaderBar() {
 
 function StatusPill() {
   return (
-    <div className="mt-4 rounded-[24px] border border-[#dfe4de] bg-[#f3f5f1] px-3 py-2.5 shadow-[0_2px_0_rgba(0,0,0,0.02)]">
+    <div className="mt-4 rounded-[22px] border border-[#dfe4de] bg-[#f3f5f1] px-3 py-2.5 shadow-[0_2px_0_rgba(0,0,0,0.02)]">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className="flex h-6 w-6 items-center justify-center rounded-md border border-[#1a7b55] bg-[#dcefe5] text-[#1a7b55]">
@@ -479,7 +479,7 @@ export default function SiteLogPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#e5e5e1] p-4 sm:p-6">
-      <div className="relative h-[850px] w-[420px] overflow-hidden rounded-[42px] border border-[#1a1a1a]/10 bg-[#f5f5f1] shadow-[0_30px_60px_rgba(0,0,0,0.18)]">
+      <div className="relative h-[820px] w-[400px] overflow-hidden rounded-[40px] border border-[#1a1a1a]/10 bg-[#f5f5f1] shadow-[0_30px_60px_rgba(0,0,0,0.18)]">
         <div className="absolute left-1/2 top-2 h-2 w-28 -translate-x-1/2 rounded-full bg-[#121212]" />
 
         <div className="px-4 pb-4 pt-7">
@@ -498,23 +498,23 @@ export default function SiteLogPage() {
           <div className="relative mt-5 pl-1 pr-2">
             <div className="absolute left-[35px] top-0 bottom-0 w-[2px] bg-[#c4c7c1] opacity-90" />
 
-            <div className="space-y-4">
+            <div className="space-y-[14px]">
               {items.map((item) => (
                 <TimelineEntry key={`${item.time}-${item.title}-${Math.random()}`} item={item} />
               ))}
             </div>
           </div>
 
-          <div className="mt-5 flex items-center gap-2">
+          <div className="mt-4 flex items-center gap-2">
             <button
-              className="rounded-full border border-[#b6bcb9] bg-[#f6f6f5] px-3 py-2 text-[12px] font-black text-[#2f2f2f]"
+              className="rounded-full border border-[#b6bcb9] bg-[#f6f6f5] px-3 py-1.5 text-[12px] font-black text-[#2f2f2f]"
               type="button"
               onClick={addMessage}
             >
               Add note
             </button>
             <button
-              className="rounded-full border border-[#b6bcb9] bg-[#f6f6f5] px-3 py-2 text-[12px] font-black text-[#2f2f2f]"
+              className="rounded-full border border-[#b6bcb9] bg-[#f6f6f5] px-3 py-1.5 text-[12px] font-black text-[#2f2f2f]"
               type="button"
               onClick={addAttachment}
             >
