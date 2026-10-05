@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react';
+
 type TimelineItem = {
   time: string;
   type: 'checkin' | 'message' | 'evidence' | 'incident';
@@ -23,7 +25,7 @@ const evidencePhoto1 =
 const evidencePhoto2 =
   'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=900&q=80';
 
-const timeline: TimelineItem[] = [
+const initialTimeline: TimelineItem[] = [
   {
     time: '08:00',
     type: 'checkin',
@@ -268,7 +270,7 @@ function EvidenceCard({ item }: { item: Extract<TimelineItem, { type: 'evidence'
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-2">
-        <img src={item.image} alt="Evidence 1" className="h-20 w-full rounded-[12px] object-cover" />
+        <img src={item.image} alt="Evidence" className="h-20 w-full rounded-[12px] object-cover" />
         <div className="flex items-center justify-center rounded-[12px] bg-[#dfe6dc] text-[12px] font-black text-[#465d4b]">
           +1 photo
         </div>
@@ -373,18 +375,42 @@ function TimelineEntry({ item }: { item: TimelineItem }) {
   );
 }
 
-function Composer() {
+function Composer({
+  value,
+  onChange,
+  onAttach,
+  onVoice,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  onAttach: () => void;
+  onVoice: () => void;
+}) {
   return (
     <div className="mt-5 flex items-center gap-3 rounded-[22px] border border-[#d0d4d0] bg-[#f6f4f2] px-3 py-3">
-      <button className="flex h-10 w-10 items-center justify-center rounded-full border border-[#1a1a1a] bg-transparent text-[#1a1a1a]" type="button" aria-label="Attach evidence">
+      <button
+        className="flex h-10 w-10 items-center justify-center rounded-full border border-[#1a1a1a] bg-transparent text-[#1a1a1a]"
+        type="button"
+        aria-label="Attach evidence"
+        onClick={onAttach}
+      >
         <IconAttach />
       </button>
 
-      <div className="flex-1 rounded-full border border-[#d8d8d1] bg-[#eef0ee] px-4 py-2.5 text-[14px] font-medium text-[#7c7c7c]">
-        Add note or evidence...
-      </div>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Add note or evidence..."
+        aria-label="Add note or evidence"
+        className="flex-1 rounded-full border border-[#d8d8d1] bg-[#eef0ee] px-4 py-2.5 text-[14px] font-medium text-[#7c7c7c] outline-none placeholder:text-[#7c7c7c]"
+      />
 
-      <button className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0f9c60] text-white shadow-[0_8px_16px_rgba(15,156,96,0.35)]" type="button" aria-label="Voice note">
+      <button
+        className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0f9c60] text-white shadow-[0_8px_16px_rgba(15,156,96,0.35)]"
+        type="button"
+        aria-label="Voice note"
+        onClick={onVoice}
+      >
         <IconMic />
       </button>
     </div>
@@ -392,6 +418,65 @@ function Composer() {
 }
 
 export default function SiteLogPage() {
+  const [items, setItems] = useState<TimelineItem[]>(initialTimeline);
+  const [draft, setDraft] = useState('');
+  const [activeVoice, setActiveVoice] = useState(false);
+
+  const formatTime = () => {
+    const now = new Date();
+    return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const addMessage = () => {
+    const message = draft.trim();
+    if (!message) return;
+
+    const nextTime = formatTime();
+    const newEntry: TimelineItem = {
+      time: nextTime,
+      type: 'message',
+      title: 'You',
+      message,
+      meta: `${nextTime} • Added note`,
+    };
+
+    setItems((current) => [newEntry, ...current]);
+    setDraft('');
+  };
+
+  const addAttachment = () => {
+    const nextTime = formatTime();
+    const newEntry: TimelineItem = {
+      time: nextTime,
+      type: 'evidence',
+      title: 'Evidence attached',
+      message: 'New evidence captured for review',
+      meta: `${nextTime} • 1 attachment`,
+      image: evidencePhoto1,
+      location: 'GPS: Sandton City, Gate A • Live update',
+    };
+
+    setItems((current) => [newEntry, ...current]);
+  };
+
+  const toggleVoice = () => {
+    setActiveVoice((current) => {
+      const next = !current;
+      if (next) {
+        const nextTime = formatTime();
+        const voiceEntry: TimelineItem = {
+          time: nextTime,
+          type: 'message',
+          title: 'Voice note',
+          message: 'Voice note recorded and attached to the site log.',
+          meta: `${nextTime} • Recording`,
+        };
+        setItems((currentItems) => [voiceEntry, ...currentItems]);
+      }
+      return next;
+    });
+  };
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#e5e5e1] p-4 sm:p-6">
       <div className="relative h-[850px] w-[420px] overflow-hidden rounded-[42px] border border-[#1a1a1a]/10 bg-[#f5f5f1] shadow-[0_30px_60px_rgba(0,0,0,0.18)]">
@@ -414,13 +499,41 @@ export default function SiteLogPage() {
             <div className="absolute left-[35px] top-0 bottom-0 w-[2px] bg-[#c4c7c1] opacity-90" />
 
             <div className="space-y-4">
-              {timeline.map((item) => (
-                <TimelineEntry key={`${item.time}-${item.title}`} item={item} />
+              {items.map((item) => (
+                <TimelineEntry key={`${item.time}-${item.title}-${Math.random()}`} item={item} />
               ))}
             </div>
           </div>
 
-          <Composer />
+          <div className="mt-5 flex items-center gap-2">
+            <button
+              className="rounded-full border border-[#b6bcb9] bg-[#f6f6f5] px-3 py-2 text-[12px] font-black text-[#2f2f2f]"
+              type="button"
+              onClick={addMessage}
+            >
+              Add note
+            </button>
+            <button
+              className="rounded-full border border-[#b6bcb9] bg-[#f6f6f5] px-3 py-2 text-[12px] font-black text-[#2f2f2f]"
+              type="button"
+              onClick={addAttachment}
+            >
+              Attach evidence
+            </button>
+          </div>
+
+          <Composer
+            value={draft}
+            onChange={setDraft}
+            onAttach={addAttachment}
+            onVoice={toggleVoice}
+          />
+
+          {activeVoice && (
+            <div className="mt-3 rounded-[16px] border border-[#dfe5d7] bg-[#e3f5e9] px-3 py-2 text-[12px] font-black text-[#0f7b54]">
+              Listening for voice note…
+            </div>
+          )}
         </div>
       </div>
     </main>
