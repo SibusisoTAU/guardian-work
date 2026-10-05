@@ -1,5 +1,19 @@
 'use client'
 
+type TimelineItem = {
+  time: string;
+  type: 'checkin' | 'message' | 'evidence' | 'incident';
+  title: string;
+  message?: string;
+  meta: string;
+  person?: string;
+  role?: string;
+  location?: string;
+  avatar?: string;
+  image?: string;
+  subtitle?: string;
+};
+
 const avatarPhoto =
   'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80';
 
@@ -9,7 +23,7 @@ const evidencePhoto1 =
 const evidencePhoto2 =
   'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=900&q=80';
 
-const timeline = [
+const timeline: TimelineItem[] = [
   {
     time: '08:00',
     type: 'checkin',
@@ -19,7 +33,6 @@ const timeline = [
     role: 'Security',
     location: 'GPS: Sandton City, Gate A • Verified location',
     avatar: avatarPhoto,
-    accent: 'green',
   },
   {
     time: '08:05',
@@ -27,7 +40,6 @@ const timeline = [
     title: 'Boss (Supervisor)',
     message: 'Please confirm perimeter check completed before 09:00. Respond when done.',
     meta: '08:05 AM • Seen',
-    accent: 'amber',
   },
   {
     time: '08:12',
@@ -37,7 +49,6 @@ const timeline = [
     meta: '08:12 AM • 1 photo',
     location: 'GPS: Sandton City, East Gate • -26.1076, 28.0567',
     image: evidencePhoto1,
-    accent: 'white',
   },
   {
     time: '10:30',
@@ -48,9 +59,8 @@ const timeline = [
     meta: '1 photo • 10:30 AM',
     location: 'GPS: Sandton City, Loading Bay • 10:30 AM',
     image: evidencePhoto2,
-    accent: 'amber',
   },
-] as const;
+];
 
 function IconArrowLeft() {
   return (
@@ -199,7 +209,7 @@ function StatusPill() {
   );
 }
 
-function CheckInCard({ item }: { item: (typeof timeline)[0] }) {
+function CheckInCard({ item }: { item: TimelineItem }) {
   return (
     <div className="mb-3 flex items-start gap-3">
       <div className="relative mt-1 h-8 w-8 shrink-0 overflow-hidden rounded-full border-[2px] border-[#d6d6d2] bg-[#efefed]">
@@ -230,7 +240,7 @@ function CheckInCard({ item }: { item: (typeof timeline)[0] }) {
   );
 }
 
-function MessageCard({ item }: { item: (typeof timeline)[1] | (typeof timeline)[2] }) {
+function MessageCard({ item }: { item: Extract<TimelineItem, { type: 'message' }> }) {
   return (
     <div className="rounded-[18px] border border-[#e7d2b8] bg-[#f0c9a7] p-3.5 shadow-[0_2px_0_rgba(0,0,0,0.02)]">
       <div className="flex items-start justify-between gap-3">
@@ -249,7 +259,7 @@ function MessageCard({ item }: { item: (typeof timeline)[1] | (typeof timeline)[
   );
 }
 
-function EvidenceCard({ item }: { item: (typeof timeline)[2] }) {
+function EvidenceCard({ item }: { item: Extract<TimelineItem, { type: 'evidence' }> }) {
   return (
     <div className="rounded-[18px] border border-[#dfe3dc] bg-[#f5f5f1] p-3.5 shadow-[0_2px_0_rgba(0,0,0,0.02)]">
       <div className="text-[18px] font-black tracking-[-0.06em] text-[#171717]">{item.title}</div>
@@ -271,7 +281,7 @@ function EvidenceCard({ item }: { item: (typeof timeline)[2] }) {
   );
 }
 
-function IncidentCard({ item }: { item: (typeof timeline)[3] }) {
+function IncidentCard({ item }: { item: Extract<TimelineItem, { type: 'incident' }> }) {
   return (
     <div className="rounded-[18px] border border-[#e7d2b8] bg-[#f0c9a7] p-3.5 shadow-[0_2px_0_rgba(0,0,0,0.02)]">
       <div className="flex items-center gap-2 text-[18px] font-black tracking-[-0.06em] text-[#1d1d1d]">
@@ -283,7 +293,7 @@ function IncidentCard({ item }: { item: (typeof timeline)[3] }) {
       <div className="text-[17px] font-black tracking-[-0.04em] text-[#1d1d1d]">{item.message}</div>
 
       <div className="mt-4 flex items-center gap-3 rounded-[16px] border border-[#e6c39c] bg-[#f3d1a4] p-2.5">
-        <button className="flex h-11 w-11 items-center justify-center rounded-full bg-[#f8ba5d] text-[#1d1d1d] shadow-[0_3px_10px_rgba(248,186,93,0.35)]">
+        <button className="flex h-11 w-11 items-center justify-center rounded-full bg-[#f8ba5d] text-[#1d1d1d] shadow-[0_3px_10px_rgba(248,186,93,0.35)]" type="button" aria-label="Play incident audio">
           <IconPlay />
         </button>
 
@@ -324,14 +334,14 @@ function LocationChip({ text }: { text: string }) {
   );
 }
 
-function TimelineEntry({ item }: { item: (typeof timeline)[number] }) {
-  const row = (() => {
+function TimelineEntry({ item }: { item: TimelineItem }) {
+  const body = (() => {
     switch (item.type) {
       case 'checkin':
         return (
           <>
             <CheckInCard item={item} />
-            <LocationChip text={item.location ?? ''} />
+            {item.location && <LocationChip text={item.location} />}
           </>
         );
       case 'message':
@@ -340,14 +350,14 @@ function TimelineEntry({ item }: { item: (typeof timeline)[number] }) {
         return (
           <>
             <EvidenceCard item={item} />
-            <LocationChip text={item.location ?? ''} />
+            {item.location && <LocationChip text={item.location} />}
           </>
         );
       case 'incident':
         return (
           <>
             <IncidentCard item={item} />
-            <LocationChip text={item.location ?? ''} />
+            {item.location && <LocationChip text={item.location} />}
           </>
         );
       default:
@@ -358,7 +368,7 @@ function TimelineEntry({ item }: { item: (typeof timeline)[number] }) {
   return (
     <div className="flex">
       <div className="w-[53px] pt-1 text-[12px] font-black text-[#7d7d7d]">{item.time}</div>
-      <div className="ml-2 flex-1">{row}</div>
+      <div className="ml-2 flex-1">{body}</div>
     </div>
   );
 }
@@ -366,7 +376,7 @@ function TimelineEntry({ item }: { item: (typeof timeline)[number] }) {
 function Composer() {
   return (
     <div className="mt-5 flex items-center gap-3 rounded-[22px] border border-[#d0d4d0] bg-[#f6f4f2] px-3 py-3">
-      <button className="flex h-10 w-10 items-center justify-center rounded-full border border-[#1a1a1a] bg-transparent text-[#1a1a1a]">
+      <button className="flex h-10 w-10 items-center justify-center rounded-full border border-[#1a1a1a] bg-transparent text-[#1a1a1a]" type="button" aria-label="Attach evidence">
         <IconAttach />
       </button>
 
@@ -374,7 +384,7 @@ function Composer() {
         Add note or evidence...
       </div>
 
-      <button className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0f9c60] text-white shadow-[0_8px_16px_rgba(15,156,96,0.35)]">
+      <button className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0f9c60] text-white shadow-[0_8px_16px_rgba(15,156,96,0.35)]" type="button" aria-label="Voice note">
         <IconMic />
       </button>
     </div>
