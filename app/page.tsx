@@ -205,7 +205,7 @@ export default function FeedPage() {
                         </button>
                       </div>
 
-                      <div className="mt-4 rounded-[24px] bg-gradient-to-br p-4 text-white shadow-lg ${post.accent}">
+                      <div className={`mt-4 rounded-[24px] bg-gradient-to-br p-4 text-white shadow-lg ${post.accent}`}>
                         <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white/80">Update</p>
                         <h4 className="mt-2 text-2xl font-black">{post.title}</h4>
                       </div>
