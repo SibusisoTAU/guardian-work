@@ -8,12 +8,7 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <script src="https://cdn.tailwindcss.com"></script>
-      </head>
-      <body style={{ margin: 0 }} className="bg-black text-white">
-        {children}
-      </body>
+      <body className="bg-[#f4f1ed] text-slate-900 antialiased">{children}</body>
     </html>
   );
 }
