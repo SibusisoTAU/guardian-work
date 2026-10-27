@@ -3,80 +3,29 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
+import type { Job } from '@/lib/guardian-data'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 )
 
-type Job = {
-  id: string
-  title: string
-  company: string
-  location: string
-  type: 'Full-Time' | 'Part-Time' | 'Contract'
-  salary: string
-  tags: string[]
-  description: string
-}
-
-const jobsSeed: Job[] = [
-  {
-    id: 'job-1',
-    title: 'Skilled Welder',
-    company: 'SteelCore Fabrication',
-    location: 'Secunda, Mpumalanga',
-    type: 'Full-Time',
-    salary: 'R18 000 - R24 000 / month',
-    tags: ['Welding', 'Fabrication', 'Safety'],
-    description: 'Looking for a skilled welder to work on structural and maintenance jobs in heavy fabrication environments.'
-  },
-  {
-    id: 'job-2',
-    title: 'General Labourer',
-    company: 'Nala Logistics',
-    location: 'Witbank, Mpumalanga',
-    type: 'Contract',
-    salary: 'R12 500 - R15 500 / month',
-    tags: ['Labour', 'Warehouse', 'Operations'],
-    description: 'Support warehouse operations, loading and offloading, site cleanup and general support duties.'
-  },
-  {
-    id: 'job-3',
-    title: 'Site Supervisor',
-    company: 'Guardian Build',
-    location: 'Johannesburg, Gauteng',
-    type: 'Full-Time',
-    salary: 'R25 000 - R32 000 / month',
-    tags: ['Leadership', 'Construction', 'Site Management'],
-    description: 'Lead site operations, coordinate crews, and ensure work quality and safety standards are maintained.'
-  },
-  {
-    id: 'job-4',
-    title: 'Warehouse Picker',
-    company: 'FreshCart Distribution',
-    location: 'Durban, KwaZulu-Natal',
-    type: 'Part-Time',
-    salary: 'R9 500 - R12 000 / month',
-    tags: ['Picking', 'Inventory', 'Logistics'],
-    description: 'Support daily order picking, packing, scanning and stock organization in a busy distribution centre.'
-  }
-]
-
 export default function SeekerPage() {
   const router = useRouter()
+  const [jobs, setJobs] = useState<Job[]>([])
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('All')
   const [activeTab, setActiveTab] = useState<'jobs' | 'saved' | 'applications' | 'profile'>('jobs')
   const [savedIds, setSavedIds] = useState<string[]>(['job-3'])
   const [appliedIds, setAppliedIds] = useState<string[]>(['job-1'])
   const [userEmail, setUserEmail] = useState('jobseeker@guardian.work')
-  const [profile, setProfile] = useState({
+  const [loadingJobs, setLoadingJobs] = useState(true)
+  const [profile] = useState({
     name: 'Thabo Kgomo',
     title: 'Welder / Site Technician',
     town: 'Secunda',
     province: 'Mpumalanga',
-    phone: '+27 82 123 4567'
+    phone: '+27 82 123 4567',
   })
 
   useEffect(() => {
@@ -90,23 +39,45 @@ export default function SeekerPage() {
     void loadUser()
   }, [])
 
-  const filteredJobs = useMemo(() => {
-    return jobsSeed.filter((job) => {
-      const matchesCategory = category === 'All' || job.type === category
-      const haystack = `${job.title} ${job.company} ${job.location} ${job.tags.join(' ')}`.toLowerCase()
-      const matchesSearch = haystack.includes(search.toLowerCase())
-      return matchesCategory && matchesSearch
-    })
-  }, [category, search])
+  useEffect(() => {
+    async function loadJobs() {
+      setLoadingJobs(true)
 
-  const savedJobs = jobsSeed.filter((job) => savedIds.includes(job.id))
-  const appliedJobs = jobsSeed.filter((job) => appliedIds.includes(job.id))
+      try {
+        const params = new URLSearchParams({
+          q: search,
+          category,
+        })
+
+        const response = await fetch(`/api/jobs?${params.toString()}`, {
+          cache: 'no-store',
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to load jobs')
+        }
+
+        const data = await response.json()
+        setJobs(data.jobs ?? [])
+      } catch (error) {
+        console.error('Error loading jobs:', error)
+        setJobs([])
+      } finally {
+        setLoadingJobs(false)
+      }
+    }
+
+    void loadJobs()
+  }, [search, category])
+
+  const filteredJobs = useMemo(() => jobs, [jobs])
+
+  const savedJobs = jobs.filter((job) => savedIds.includes(job.id))
+  const appliedJobs = jobs.filter((job) => appliedIds.includes(job.id))
 
   const handleSave = (jobId: string) => {
     setSavedIds((current) =>
-      current.includes(jobId)
-        ? current.filter((id) => id !== jobId)
-        : [...current, jobId]
+      current.includes(jobId) ? current.filter((id) => id !== jobId) : [...current, jobId]
     )
   }
 
@@ -129,7 +100,7 @@ export default function SeekerPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search jobs, skills or company"
-            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none ring-0 transition focus:border-emerald-500 focus:bg-white"
+            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:bg-white"
           />
           <select
             value={category}
@@ -145,55 +116,65 @@ export default function SeekerPage() {
       </div>
 
       <div className="grid gap-4">
-        {filteredJobs.map((job) => {
-          const isSaved = savedIds.includes(job.id)
-          const isApplied = appliedIds.includes(job.id)
+        {loadingJobs ? (
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+            Loading jobs...
+          </div>
+        ) : filteredJobs.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
+            No jobs match your search right now.
+          </div>
+        ) : (
+          filteredJobs.map((job) => {
+            const isSaved = savedIds.includes(job.id)
+            const isApplied = appliedIds.includes(job.id)
 
-          return (
-            <div key={job.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600">{job.type}</p>
-                  <h3 className="mt-1 text-2xl font-black text-slate-900">{job.title}</h3>
-                  <p className="mt-1 text-sm text-slate-600">{job.company}</p>
-                  <p className="mt-2 text-sm text-slate-500">{job.location}</p>
-                  <p className="mt-3 text-sm font-semibold text-emerald-700">{job.salary}</p>
+            return (
+              <div key={job.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600">{job.type}</p>
+                    <h3 className="mt-1 text-2xl font-black text-slate-900">{job.title}</h3>
+                    <p className="mt-1 text-sm text-slate-600">{job.company}</p>
+                    <p className="mt-2 text-sm text-slate-500">{job.location}</p>
+                    <p className="mt-3 text-sm font-semibold text-emerald-700">{job.salary}</p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSave(job.id)}
+                      className={`rounded-xl border px-4 py-2 text-sm font-bold ${
+                        isSaved
+                          ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
+                          : 'border-slate-200 bg-white text-slate-700'
+                      }`}
+                    >
+                      {isSaved ? 'Saved' : 'Save'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApply(job.id)}
+                      className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700"
+                    >
+                      {isApplied ? 'Applied' : 'Apply now'}
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleSave(job.id)}
-                    className={`rounded-xl border px-4 py-2 text-sm font-bold ${
-                      isSaved
-                        ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
-                        : 'border-slate-200 bg-white text-slate-700'
-                    }`}
-                  >
-                    {isSaved ? 'Saved' : 'Save'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleApply(job.id)}
-                    className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700"
-                  >
-                    {isApplied ? 'Applied' : 'Apply now'}
-                  </button>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {job.tags.map((tag) => (
+                    <span key={tag} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
+                      {tag}
+                    </span>
+                  ))}
                 </div>
-              </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                {job.tags.map((tag) => (
-                  <span key={tag} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
-                    {tag}
-                  </span>
-                ))}
+                <p className="mt-4 text-sm leading-6 text-slate-600">{job.description}</p>
               </div>
-
-              <p className="mt-4 text-sm leading-6 text-slate-600">{job.description}</p>
-            </div>
-          )
-        })}
+            )
+          })
+        )}
       </div>
     </div>
   )
@@ -254,7 +235,11 @@ export default function SeekerPage() {
     <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-center gap-4">
         <div className="grid h-16 w-16 place-items-center rounded-full bg-emerald-600 text-xl font-black text-white">
-          {profile.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}
+          {profile.name
+            .split(' ')
+            .map((part) => part[0])
+            .slice(0, 2)
+            .join('')}
         </div>
         <div>
           <h3 className="text-2xl font-black text-slate-900">{profile.name}</h3>
@@ -265,7 +250,9 @@ export default function SeekerPage() {
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <div className="rounded-2xl bg-slate-50 p-4">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Location</p>
-          <p className="mt-2 text-base font-semibold text-slate-800">{profile.town}, {profile.province}</p>
+          <p className="mt-2 text-base font-semibold text-slate-800">
+            {profile.town}, {profile.province}
+          </p>
         </div>
         <div className="rounded-2xl bg-slate-50 p-4">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Phone</p>
